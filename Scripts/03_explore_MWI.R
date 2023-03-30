@@ -41,9 +41,6 @@
   # Use google drive to download file and then pass temp path through to vroom to open
   temp <- tempfile(fileext = ".zip")
   dl <- drive_download(as_id(ss_sites), path = temp, overwrite = T)
-      
-  # Grab metadata
-   get_metadata(file_path)
   
   # REF ID for plots
     ref_id <- "86b9e21f"
@@ -54,17 +51,47 @@
 # LOAD MALAWI DATA ============================================================================  
    
   # Load the MFL data and clean up names
-   mwi_mfl <- read_sheet(ss_mwi, col_types = "c") %>% 
-      janitor::clean_names() 
+  mwi_mfl <- read_sheet(ss_mwi, col_types = "c") %>% 
+     janitor::clean_names() 
   
   mwi_mfl %>% distinct(code)  
-  mwi_mfl %>% calc_share(., type) %>% janitor::adorn_totals() %>% gt()
-    
-    
-
-# MUNGE ============================================================================
+  mwi_mfl %>% calc_share(., type) %>% janitor::adorn_totals() 
   
-  #  
+  # Load the DAA data with attributes
+  mwi_daa <- read_sheet(ss_mwi_daa, col_types = "c")
+  
+  #Spread wider so we can join facility attribute information in
+  mwi_daa_wide <- mwi_daa %>% 
+    filter(dataelement %in% c("SA_FACILITY_TYPE", "SA_OWN_TYPE")) %>%
+    pivot_wider(names_from = dataelement, values_from = value) 
+ 
+   # What does the attribute information look like for the DAA file?
+  mwi_daa_wide %>% calc_share(SA_FACILITY_TYPE)
+  
+  # Pull in site level data from AC datim API pull
+  mwi_sites_api <- vroom::vroom(dl$local_path) %>% 
+    filter(operatingunit %in% "Malawi", sitetype == "Facility") %>% 
+    mutate(facilityname = str_extract(orgunit_hierarchy, "([^\\/]+$)"), .after = orgunit_hierarchy) %>% 
+    separate(orgunit_hierarchy, sep = "/", into = c("org_first", "org_second", "org_third", "org_fourth"))
+  
+  # Keep in mind most USAID activities are above site -- so facility level data will not capture their reach
+  mwi_nonsites_api <- vroom::vroom(dl$local_path) %>% 
+    filter(operatingunit %in% "Malawi", sitetype != "Facility") %>% 
+    mutate(facilityname = str_extract(orgunit_hierarchy, "([^\\/]+$)"), .after = orgunit_hierarchy) %>% 
+    separate(orgunit_hierarchy, sep = "/", into = c("org_first", "org_second", "org_third", "org_fourth"))
+
+# COMBINING MALAWI DATA ============================================================================
+  
+  # First Question to answer, what does each data set say about service delivery types? 
+  # Let's combine the results from the MFL and datim DAA attributes data set to see
+  
+  mwi_mfl %>% 
+    calc_share(type) %>% 
+    gt_starter()
+  
+  mwi_daa_wide %>% 
+    calc_share(SA_FACILITY_TYPE) %>% 
+    gt_starter()
   
 # VIZ ============================================================================
 
