@@ -1,0 +1,47 @@
+---
+title: "Summary of Primary Health Care Analysis"
+format: html
+editor: visual
+---
+
+## The Ask
+
+What is PEPFAR presence in Primary Health Care (PHC) Facilities?
+
+-   What proportion of of PHC facilities in a country are covered by PEPFAR?
+
+-   What services does PEPFAR provide at PHC facilities?
+
+-   Where do recent HTS_TST_POS and TX_NEW come from in terms of PHC versus non-PHC facilities?
+
+## Data Needed & Definitions
+
+To answer the question posed above, we need a series of facility lists that contain a number of features.
+
+1.  First, to understand the universe of health facilities in a country (the denominator), we need a copy of an up-to-date master facility list (MFL). Within this list, we also *need to know the health service delivery hierarchy* to determine what constitutes a facility delivering PHC services. **In the MFLs reviewed, no columns exist that clearly delineate PHC facilities.**
+
+2.  Second, we need to know in which facilities PEPFAR is working. We can use the site level MER Structured datasets (or DATIM) available from Panorama to track PEPFAR's facility-level footprint in addition to distinguishing what indicators are reported at each place. The site level MSDs do not contain a column that identify facility attributes.
+
+3.  Third, we need a common crosswalk that enables one to merge the facilities from the MFL to those contained in DATIM. Within DATIM, facilities have an `orgunituid`, `facility name`, and `facilityuid`. Ideally, the MFL would contain a common field that would enable the facility level data to be easily joined between data sets. **No MFL that we have reviewed contain a common field on which data can be reliably joined.**
+
+| Country  | Source     | Facilities | PEPFAR  | Attributes    | PHC ID | PEPFAR x-walk | Facility Count |
+|----------|------------|------------|---------|---------------|--------|---------------|----------------|
+| Botswana | MFL        | Census     | No      | Yes - limited | No     | No            | 725            |
+| Botswana | MSD (site) | Subset     | Yes     | No            | No     | Yes           | 470            |
+| Botswana | DAA DEOU   | Subset     | Yes     | No            | No     | Yes           | 790            |
+| Malawi   |            |            |         |               |        |               |                |
+| Malawi   |            |            |         |               |        |               |                |
+| Malawi   |            |            |         |               |        |               |                |
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
