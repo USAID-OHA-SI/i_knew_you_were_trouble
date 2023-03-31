@@ -53,6 +53,7 @@ vignettes/*.pdf
 *.twbx
 *.pptx
 *.html
+*.rmarkdown
 
 #nothing from these folders
 AI/*
