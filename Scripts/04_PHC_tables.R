@@ -34,7 +34,8 @@
     dl <- drive_download(as_id(ss_sites), path = temp, overwrite = T)
     
   # MSD site file to check attributes
-    bts_msd_site_path  <- return_latest(folder = "Data", pattern = "MER|Botswana")
+    bts_msd_site_path  <- return_latest(folder = "Data", pattern = "Site_IM.*Botswana")
+    mwi_msd_site_path <- return_latest(folder = "Data", pattern = "Site_IM.*Malawi")
   
   # SS DAA data with attributes from Jason K. (SGAC)
     ss_bts_daa <- "1aBcZRV-Wwk4_RpfzQtIuLw96-1CtpBQMKPOJaKUBfkk"
@@ -71,86 +72,96 @@
     bts_msd_site <- read_psd(bts_msd_site_path) %>% 
       munge_msd()
     
-    
-    bts_msd_site %>% 
-      filter(fiscal_year == metadata$curr_fy, standardizeddisaggregate == "Total Numerator",
-             indicator %in% c("TX_CURR", "TX_NEW", "HTS_TST_POS")) %>% 
-      group_by(fiscal_year, indicator) %>% 
-      summarize(across(c(cumulative), \(x) sum(x, na.rm = T)))
-    
   # Malawi data assets
     mwi_daa <- read_sheet(ss_mwi_daa, col_types = "c") %>% 
       pivot_daa()
     mwi_deou <- read_sheet(ss_mwi_deou, col_types = "c")
     mwi_msd_site <- read_psd(mwi_msd_site_path) %>% 
       munge_msd()
+    
+    
+# BOTSWANA MER DATA -------------------------------------------------------
 
-    
-# CREATE MERGED DATASETS ============================================================================
-  
-  #  First, let's create the attribute merge so we are working with the right unit of analysis
-    map(list(bts_deou, bts_daa, datim_sites_api), ~names(.x))
-    
-  # 132 facilities in the DEOU that are not in the DAA attribute data; 407 NOT in PEPFAR data
-  # 407 facilities in the DEOU that are not in site API pull
-    bts_sites <- tidylog::left_join(bts_deou, bts_daa, by = c("orgunit_internal_id" = "orgunit")) %>% 
-      rename(orgunituid = orgunit_internal_id) %>% 
-      mutate(merge_status = ifelse(is.na(period), "deou_only", "merged")) %>% 
-      tidylog::left_join(., datim_sites_api %>% filter(operatingunit == "Botswana"), by = c("orgunituid" = "orgunituid")) %>% 
-      mutate(merge_status_two = ifelse(is.na(facilityname), "non-PEPFAR", "PEPFAR"))
-    
-  # How many sites does PEPFAR work in that have attribute information?
- bts_sites %>% 
-    distinct(orgunituid, merge_status, merge_status_two) %>% 
-    count(merge_status, merge_status_two) %>% 
-    spread(merge_status, n)
-    
-    
-    
-  # keep merged + PEPFAR results
-    bts_sites %>% 
-      filter(merge_status == "merged") %>% 
-      distinct(orgunituid, merge_status_two, SA_FACILITY_TYPE) %>% 
-      calc_share(merge_status_two, SA_FACILITY_TYPE) %>% 
-      mutate(fac_type = fct_reorder(SA_FACILITY_TYPE, Share, .desc = T)) %>% 
-      arrange(fac_type, merge_status_two, Share) %>% 
-      gt_starter(., c(n, Share)) %>% 
-      tab_header(
-        title = "BOTSWANA PEPFAR COVERAGE SUMMARY BY FACILITY TYPE"
-      ) %>% 
-      tab_source_note(
-        source_note = gt::md(glue("Source: DATIM Data Alignment Activity Attribute Data 2023"))) %>% 
-      tab_options(
-        source_notes.font.size = px(10)) %>% 
-      cols_hide(fac_type) %>% 
-      cols_label(SA_FACILITY_TYPE = "Facility Type", 
-                 merge_status_two = "COVERAGE")
-
-    
+    # This is really what we are after with the ask
     # Now bring in the site level indicator data
-    bts_sites_mer <- tidylog::left_join(bts_deou, bts_daa, by = c("orgunit_internal_id" = "orgunit")) %>% 
-      rename(orgunituid = orgunit_internal_id) %>% 
-      mutate(merge_status = ifelse(is.na(period), "deou_only", "merged")) %>% 
-      tidylog::left_join(., bts_msd_site) %>% 
-      mutate(merge_status_two = ifelse(is.na(sitename), "non-PEPFAR", "PEPFAR"))
+    bts_sites_mer <- join_datim_assets(df1 = bts_deou, df2 = bts_daa, df3 = bts_msd_site)
+    
+    # Fetch  country name for use in table headers
+    cntry <- get_countryname(bts_sites_mer)
+
+    # PEPFAR footpring
+    pepfar_footprint_gt(bts_sites_mer)
     
     # Summary table of indicators by facility type for Q1
-    bts_sites_mer %>% 
-      filter(merge_status_two == "PEPFAR") %>% 
-      group_by(SA_FACILITY_TYPE) %>% 
-      summarize(across(c(HTS_TST_POS, TX_NEW, TX_CURR), \(x) sum(x, na.rm = T))) %>% 
-      ungroup() %>% 
-      mutate(across(c(HTS_TST_POS, TX_NEW, TX_CURR), \(x) x / sum(x, na.rm = T), .names = "{.col}_share")) %>% 
-      janitor::adorn_totals()
-
-
+    bts_gt_df <- create_coverage_df(bts_sites_mer)
+      
+    # Create a GT summary of the results
+    create_phc_gt(bts_gt_df) %>% 
+      gtsave_extra(filename = "Images/BTS_MER_summary_by_facility_type.png")
     
+    remove(cntry)
   # 132 facilities in the DEOU dataset that are not included in bts_daa (697 match)
     
+
+# MALAWI: CREATE MERGED TABLES --------------------------------------------
   
-# VIZ ============================================================================
+    # MER DATA -- This is really what we are after with the ask
+    mwi_sites_mer <- join_datim_assets(mwi_deou, mwi_daa, mwi_msd_site)
+    
+    mwi_sites_mer %>% 
+      distinct(orgunituid, merge_status, merge_status_two) %>% 
+      count(merge_status, merge_status_two) %>% 
+      spread(merge_status, n)
+    
+    cntry <- get_countryname(mwi_sites_mer) 
+    
+    mwi_sites_mer %>% 
+      pepfar_footprint_gt()
+    
+    # Summary table of indicators by facility type for Q1
+    mwi_gt_df <- mwi_sites_mer %>% 
+      create_coverage_df()
+    
+    mwi_gt_df %>%
+     create_phc_gt()
+      gtsave_extra(filename = glue("Images/{cntry}_MER_summary_by_facility_type.png"))
+    
 
-  #  
+# EXTRA -------------------------------------------------------------------
 
-# SPINDOWN ============================================================================
-
+    
+    # #  First, let's create the attribute merge so we are working with the right unit of analysis
+    # map(list(bts_deou, bts_daa, datim_sites_api), ~names(.x))
+    # 
+    # # 132 facilities in the DEOU that are not in the DAA attribute data; 407 NOT in PEPFAR data
+    # # 407 facilities in the DEOU that are not in site API pull
+    # bts_sites <- join_datim_assets(bts_deou, bts_daa, 
+    #                                datim_sites_api %>% filter(operatingunit == "Botswana"), 
+    #                                unique_var = facilityname)
+    # 
+    # # How many sites does PEPFAR work in that have attribute information?
+    # # merge_status = First level of merge, merge_status_two = second merge on API data
+    # bts_sites %>% 
+    #   distinct(orgunituid, merge_status, merge_status_two) %>% 
+    #   count(merge_status, merge_status_two) %>% 
+    #   spread(merge_status, n)
+    # 
+    # # keep merged + PEPFAR results
+    # bts_sites %>% 
+    #   filter(merge_status == "merged") %>% 
+    #   distinct(orgunituid, merge_status_two, SA_FACILITY_TYPE) %>% 
+    #   calc_share(merge_status_two, SA_FACILITY_TYPE) %>% 
+    #   mutate(fac_type = fct_reorder(SA_FACILITY_TYPE, Share, .desc = T)) %>% 
+    #   arrange(fac_type, merge_status_two, Share) %>% 
+    #   gt_starter(., c(n, Share)) %>% 
+    #   tab_header(
+    #     title = "BOTSWANA PEPFAR COVERAGE SUMMARY BY FACILITY TYPE"
+    #   ) %>% 
+    #   tab_source_note(
+    #     source_note = gt::md(glue("Source: DATIM Data Alignment Activity Attribute Data 2023"))) %>% 
+    #   tab_options(
+    #     source_notes.font.size = px(10)) %>% 
+    #   cols_hide(fac_type) %>% 
+    #   cols_label(SA_FACILITY_TYPE = "Facility Type", 
+    #              merge_status_two = "COVERAGE")    
+    

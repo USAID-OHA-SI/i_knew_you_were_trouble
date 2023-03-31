@@ -52,9 +52,11 @@ vignettes/*.pdf
 *.png
 *.twbx
 *.pptx
+*.html
 
 #nothing from these folders
 AI/*
 GIS/*
 Images/*
 Graphics/*
+Scripts/PHR_summary_files
