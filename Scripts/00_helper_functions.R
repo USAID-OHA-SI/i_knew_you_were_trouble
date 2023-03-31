@@ -149,7 +149,7 @@ pepfar_footprint_gt <- function(df){
     arrange(fac_type, merge_status_two, Share) %>%
     gt_starter(., c(n, Share)) %>%
     tab_header(
-      title = glue("{cntry} PEPFAR COVERAGE SUMMARY BY FACILITY TYPE")
+      title = glue("{cntry} PEPFAR COVERAGE (HTS_POS, TX_CURR, TX_NEW) SUMMARY BY FACILITY TYPE")
     ) %>%
     tab_source_note(
       source_note = gt::md(glue("Source: DATIM Data Alignment Activity Attribute Data 2023"))) %>%

@@ -66,16 +66,16 @@
       separate(orgunit_hierarchy, sep = "/", into = c("org_first", "org_second", "org_third", "org_fourth"))
     
   # Botswana data assets
-    bts_daa <- read_sheet(ss_bts_daa, col_types = "c") %>% 
+    bts_daa <- range_speedread(ss_bts_daa, col_types = "c") %>% 
       pivot_daa()
-    bts_deou <- read_sheet(ss_bts_deou, col_types = "c")  
+    bts_deou <- range_speedread(ss_bts_deou, col_types = "c")  
     bts_msd_site <- read_psd(bts_msd_site_path) %>% 
       munge_msd()
     
   # Malawi data assets
-    mwi_daa <- read_sheet(ss_mwi_daa, col_types = "c") %>% 
+    mwi_daa <- range_speedread(ss_mwi_daa, col_types = "c") %>% 
       pivot_daa()
-    mwi_deou <- read_sheet(ss_mwi_deou, col_types = "c")
+    mwi_deou <- range_speedread(ss_mwi_deou, col_types = "c")
     mwi_msd_site <- read_psd(mwi_msd_site_path) %>% 
       munge_msd()
     

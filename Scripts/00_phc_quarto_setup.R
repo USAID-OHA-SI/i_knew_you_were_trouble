@@ -28,14 +28,18 @@ library(gt)
 load_secrets()
 
 # Sites pulled via API by AC
-ss_sites <- "1qX_qzyaS4eG9ivGAyoop5I2uPvzLOjwy"
+# ss_sites <- "1qX_qzyaS4eG9ivGAyoop5I2uPvzLOjwy"
 # Use google drive to download file and then pass temp path through to vroom to open
-temp <- tempfile(fileext = ".zip")
-dl <- drive_download(as_id(ss_sites), path = temp, overwrite = T)
+# temp <- tempfile(fileext = ".zip")
+# dl <- drive_download(as_id(ss_sites), path = temp, overwrite = T)
 
 # MSD site file to check attributes
-bts_msd_site_path  <- return_latest(folder = "Data", pattern = "Site_IM.*Botswana")
-mwi_msd_site_path <- return_latest(folder = "Data", pattern = "Site_IM.*Malawi")
+
+
+# README: IMPORTANT PATH CHOICE
+# The folder path has to be removed 1 level because the Quarto file lives in the Scripts folder
+bts_msd_site_path  <- return_latest(folder = "../Data", pattern = "Site_IM.*Botswana")
+mwi_msd_site_path <- return_latest(folder = "../Data", pattern = "Site_IM.*Malawi")
 
 # SS DAA data with attributes from Jason K. (SGAC)
 ss_bts_daa <- "1aBcZRV-Wwk4_RpfzQtIuLw96-1CtpBQMKPOJaKUBfkk"
@@ -52,7 +56,7 @@ ref_id <- "3a06b30d"
 get_metadata(bts_msd_site_path)
 
 # Functions  
-source("Scripts/00_helper_functions.R")
+source("00_helper_functions.R")
 cntry_list <- c("Botswana", "Malawi")
 
 

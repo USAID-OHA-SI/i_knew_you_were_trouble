@@ -2,12 +2,19 @@
 title: "Summary of Primary Health Care Analysis"
 format: html
 editor: visual
+execute:
+  warning: false
 project:
     execute-dir: file
 ---
 
-```{r}
-getwd()
+```{r load helpers}
+#| echo: FALSE
+#| eval: TRUE
+#| include: FALSE
+
+# Load functions, objects and paths to data
+  source("00_phc_quarto_setup.R")
 ```
 
 ## The Ask
@@ -18,25 +25,124 @@ What is PEPFAR's presence in Primary Health Care (PHC) Facilities?
 
 -   Where do recent HTS_TST_POS and TX_NEW come from in terms of PHC versus non-PHC facilities?
 
-## Data Needed & Definitions
+## Data Needed
 
 To answer the question posed above, we need a series of facility lists that contain a number of features.
 
-1.  First, to understand the universe of health facilities in a country (the denominator), we need a copy of an up-to-date master facility list (MFL). The `Org Unit` dataset (DATIM login required) available from here contains all the facilities
+1.  First, to understand the universe of health facilities in a country (the denominator), we need a copy of an up-to-date master facility list (MFL). The `Org Unit` dataset (DATIM login required) available from [here](https://datim.zendesk.com/hc/en-us/articles/115002334246-DATIM-Data-Import-and-Exchange-Resources#p3 "Link to DATIM Concepts page containing Org Unit") contains all the facilities considered for the **Data Alignment Activity** (DAA). This dataset serves as the denominator for the project.
 
-2.  Second, we need to know in which facilities PEPFAR is working. We can use the site level MER Structured datasets (or DATIM) available from Panorama to track PEPFAR's facility-level footprint in addition to distinguishing what indicators are reported at each place. The site level MSDs do not contain a column that identify facility attributes.
+2.  Next, we need to know information about the types of facilities in a country. We recently learned an [effort](https://datim.zendesk.com/hc/en-us/articles/7881071655060-9-Site-Attributes "Link to Site Attributes article on DATIM") the DATIM support staff are conducting to gather site attributes. Through our contacts at SGAC, we were able to access a copy of the site attribute data for Botswana and Malawi. There are two limitations with these data. The site attributes only describe the type of a facility in a country. And the number of facilities with attribute information is not universal -- 88% completion in Botswana and 74% in Malawi.
 
-3.  Third, we need a common crosswalk that enables one to merge the facilities from the MFL to those contained in DATIM. Within DATIM, facilities have an `orgunituid`, `facility name`, and `facilityuid`. Ideally, the MFL would contain a common field that would enable the facility level data to be easily joined between data sets. **No MFL that we have reviewed contain a common field on which data can be reliably joined.**
+3.  Finally, we need to know where PEPFAR is working in a country. This information is contained in the Monitoring, Evaluation and Reporting data (aka MER site-level MSD). We downloaded the MSDs from Panorama and retained all sites reporting on `HTS_TST_POS`, `TX_CURR`, and `TX_NEW`.
 
-```{r}
-1 + 1
+## Load and Review the Data
+
+With our three data sets acquired, we can now load the data for each country and review the attributes.
+
+```{r load data}
+#| eval: TRUE
+#| output: FALSE
+
+# Botswana data assets
+  bts_daa <- range_speedread(ss_bts_daa, col_types = "c") %>% 
+    pivot_daa()
+  bts_deou <- range_speedread(ss_bts_deou, col_types = "c")  
+  bts_msd_site <- read_psd(bts_msd_site_path) %>% 
+    munge_msd()
+    
+# Malawi data assets
+  mwi_daa <- range_speedread(ss_mwi_daa, col_types = "c") %>% 
+    pivot_daa()
+  mwi_deou <- range_speedread(ss_mwi_deou, col_types = "c")
+  mwi_msd_site <- read_psd(mwi_msd_site_path) %>% 
+    munge_msd()
+    
+
 ```
 
-You can add options to executable code like this
+### Botswana Summary
 
-```{r}
+With the data loaded, we can review the columns in each data set. Ideally, we need some form of an `orgunituid` to merge the data to the parent data set (`bts_deou` and `mwi_deou`). We can see that each dataset loaded contains some form of the `orgunituid`.
+
+```{r review Botswana data}
 #| echo: false
-2 * 2
+# Loop over the Botswana data and summarize each data frame
+  map(list(bts_deou, bts_daa, bts_msd_site), ~names(.x))
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+We have set up script (`00_helper_functions`) of merge functions that help us merge the data frames together. The `tidylog` package also allows us to show how many records join on a 1-1 basis across the operations.
+
+```{r merge Botswana}
+# This is really what we are after with the ask
+# Now bring in the site level indicator data
+  bts_sites_mer <- join_datim_assets(df1 = bts_deou, df2 = bts_daa, df3 = bts_msd_site)
+    
+```
+
+Botswana has **`r nrow(bts_deou)`** total health care facilities. Of that number, **`r nrow(bts_daa)`** contain attribute data and valid DATIM `orgunituids`. In `r glue::glue({metadata$curr_pd})`, PEPFAR reported testing and treatment indicators in **`r nrow(bts_msd_site)`** sites, of which **`r bts_sites_mer %>% filter(merge_status_two == "PEPFAR", merge_status == "merged") %>% distinct(orgunituid, merge_status) %>% count(merge_status) %>% pull(n)`** contain site attribute information -- **`r bts_sites_mer %>% filter(merge_status_two == "PEPFAR", merge_status != "merged") %>% distinct(orgunituid, merge_status) %>% count(merge_status) %>% pull(n)`** sites report PEPFAR indicators but do not have facility level attribute information. The table below provides a complete breakdown of facility types by PEPFAR coverage status.
+
+```{r Botsana cross tab pepfar coverage}
+# Fetch  country name for use in table headers
+  cntry <- get_countryname(bts_sites_mer)
+
+# PEPFAR footpring
+  pepfar_footprint_gt(bts_sites_mer)
+```
+
+#### PEPFAR SHARE OF REPORTING BY FACILITY TYPE
+
+Primary Health Centers report the greatest share of the selected testing and treatment indicators. For `TX_CURR` Primary Health Centers and Hospitals report the majority of results. It is important to keep in mind that much of USAID's efforts in Botswana occur at the community level and are not reflected in a facility-level analysis.
+
+```{r Botswana reporting shares}
+  
+# Generate a summary table showing share of reporting by facility type
+
+# Summary table of indicators by facility type for Q1
+  bts_gt_df <- create_coverage_df(bts_sites_mer)
+
+# Create a GT summary of the results
+  create_phc_gt(bts_gt_df)
+
+```
+
+### Malawi Summary
+
+We use the same process to load and merge the Malawi data. First, we'll join the three data frames together.
+
+```{r merge Malawi}
+# Merge together the three Malawi data assets 
+  mwi_sites_mer <- join_datim_assets(mwi_deou, mwi_daa, mwi_msd_site)
+```
+
+As summarized in the merge results above, Malawi has `r nrow(mwi_deou)` total health care facilities. Of this number, **`r nrow(mwi_daa)`** contain facility attribute information. In `r glue::glue({metadata$curr_pd})`, PEPFAR reported testing and treatment indicators in **`r nrow(mwi_msd_site)`** sites, of which **`r mwi_sites_mer %>% filter(merge_status_two == "PEPFAR", merge_status == "merged") %>% distinct(orgunituid, merge_status) %>% count(merge_status) %>% pull(n)`** contain site attribute information -- **`r mwi_sites_mer %>% filter(merge_status_two == "PEPFAR", merge_status != "merged") %>% distinct(orgunituid, merge_status) %>% count(merge_status) %>% pull(n)`** sites report PEPFAR indicators but do not have facility level attribute information. The table below provides a complete breakdown of facility types by PEPFAR coverage status.
+
+```{r Malawi cross tab pepfar coverage}
+# Generate a summary table showing share of reporting by facility type
+
+# Fetch  country name for use in table headers
+  cntry <- get_countryname(mwi_sites_mer)
+
+# PEPFAR footpring
+  pepfar_footprint_gt(mwi_sites_mer)
+```
+
+#### PEPFAR SHARE OF REPORTING BY FACILITY TYPE
+
+Similar to Botswana, Primary Health Centers report the greatest share of the selected testing and treatment indicators. Across all selected indicators Primary Health Centers and Hospitals report the majority of results.
+
+```{r Malawi reporting shares}
+  
+# Generate a summary table showing share of reporting by facility type
+
+# Summary table of indicators by facility type for Q1
+  mwi_gt_df <- create_coverage_df(mwi_sites_mer)
+
+# Create a GT summary of the results
+  create_phc_gt(mwi_gt_df)
+
+```
+
+### Conclusion
+
+According to analysis of six data sets in two operating units, we learned that Primary Health Centers and Hospitals drive the majority of MER reporting results across select testing and treatment indicators. In Botswana, only **`r bts_sites_mer %>% filter(merge_status_two == "PEPFAR", merge_status == "merged") %>% distinct(orgunituid, merge_status) %>% count(merge_status) %>% pull(n)`** facilities report on MER indicators and have facility attribute information. In Malawi, this number is much higher at
+**`r mwi_sites_mer %>% filter(merge_status_two == "PEPFAR", merge_status == "merged") %>% distinct(orgunituid, merge_status) %>% count(merge_status) %>% pull(n)`**.
