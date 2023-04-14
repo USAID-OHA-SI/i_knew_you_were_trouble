@@ -91,6 +91,8 @@
 
     # PEPFAR footpring
     pepfar_footprint_gt(bts_sites_mer)
+    pepfar_footprint_gt_pivot(bts_sites_mer)
+    
     
     # Summary table of indicators by facility type for Q1
     bts_gt_df <- create_coverage_df(bts_sites_mer)
@@ -117,6 +119,9 @@
     
     mwi_sites_mer %>% 
       pepfar_footprint_gt()
+    
+    pepfar_footprint_gt_pivot(mwi_sites_mer)
+    
     
     # Summary table of indicators by facility type for Q1
     mwi_gt_df <- mwi_sites_mer %>% 
