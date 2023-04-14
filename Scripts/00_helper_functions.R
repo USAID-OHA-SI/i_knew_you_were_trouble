@@ -26,24 +26,24 @@ gt_starter <- function(df, ...){
 
 
 # Pivots the attribute data wide so we can tabulate facility types easily
-  pivot_daa <- function(df){
-    df %>% 
-      filter(dataelement %in% c("SA_FACILITY_TYPE", "SA_OWN_TYPE")) %>%
-      pivot_wider(names_from = dataelement, values_from = value) 
-  }
-  
-  
+pivot_daa <- function(df){
+  df %>% 
+    filter(dataelement %in% c("SA_FACILITY_TYPE", "SA_OWN_TYPE")) %>%
+    pivot_wider(names_from = dataelement, values_from = value) 
+}
+
+
 # munge the MSD for key indicators
-  munge_msd <- function(df){
-    df %>% 
-  filter(fiscal_year == metadata$curr_fy, standardizeddisaggregate == "Total Numerator",
-         indicator %in% c("TX_CURR", "TX_NEW", "HTS_TST_POS")) %>% 
+munge_msd <- function(df){
+  df %>% 
+    filter(fiscal_year == metadata$curr_fy, standardizeddisaggregate == "Total Numerator",
+           indicator %in% c("TX_CURR", "TX_NEW", "HTS_TST_POS")) %>% 
     group_by(fiscal_year, indicator, orgunituid, sitename) %>% 
     summarize(across(c(cumulative), \(x) sum(x, na.rm = T))) %>% 
     pivot_wider(names_from = indicator, values_from = cumulative)
-  }
-  
-  
+}
+
+
 # Function to join datim assets and show he join log
 # Order of join is DEOU (MFL equivalent), DAA Attribute data, Site level MSD collapsed to indicators
 #' Joins DATIM Assets
@@ -56,17 +56,17 @@ gt_starter <- function(df, ...){
 #' @return data frame of merged DATIM assets
 #' @export
 #'
-  join_datim_assets <- function(df1, df2, df3, unique_var = sitename){
-      df <- 
-      tidylog::left_join(df1, df2, by = c("orgunit_internal_id" = "orgunit")) %>% 
-      rename(orgunituid = orgunit_internal_id) %>% 
-      mutate(merge_status = ifelse(is.na(period), "deou_only", "merged")) %>% 
-      tidylog::left_join(., df3) %>% 
-      mutate(merge_status_two = ifelse(is.na({{unique_var}}), "non-PEPFAR", "PEPFAR"))
-      return(df)
-  }                 
-  
-  
+join_datim_assets <- function(df1, df2, df3, unique_var = sitename){
+  df <- 
+    tidylog::left_join(df1, df2, by = c("orgunit_internal_id" = "orgunit")) %>% 
+    rename(orgunituid = orgunit_internal_id) %>% 
+    mutate(merge_status = ifelse(is.na(period), "deou_only", "merged")) %>% 
+    tidylog::left_join(., df3) %>% 
+    mutate(merge_status_two = ifelse(is.na({{unique_var}}), "non-PEPFAR", "PEPFAR"))
+  return(df)
+}                 
+
+
 # OU gt summary data frame
 #' Title
 #'
@@ -76,19 +76,9 @@ gt_starter <- function(df, ...){
 #' @export
 #'
 #' @examples
- create_coverage_df <- function(df){
-   
-  total_sites <- df %>% 
-     filter(merge_status_two == "PEPFAR", !is.na(SA_FACILITY_TYPE)) %>%
-     mutate(facility_type = case_when(
-       is.na(SA_FACILITY_TYPE) ~ "Other",
-       TRUE ~ SA_FACILITY_TYPE
-     )) %>% 
-     distinct(sitename) %>% 
-    count() %>% pull()
-   
-   df %>% 
-    filter(merge_status_two == "PEPFAR", !is.na(SA_FACILITY_TYPE)) %>%
+create_coverage_df <- function(df){
+  df %>% 
+    filter(merge_status_two == "PEPFAR") %>%
     mutate(facility_type = case_when(
       is.na(SA_FACILITY_TYPE) ~ "Other",
       TRUE ~ SA_FACILITY_TYPE
@@ -98,11 +88,10 @@ gt_starter <- function(df, ...){
     ungroup() %>% 
     mutate(across(c(HTS_TST_POS, TX_NEW, TX_CURR), \(x) percent(x / sum(x, na.rm = T), 1.0), .names = "{.col}_share"), 
            facility_type = fct_reorder(facility_type, TX_CURR, .desc = T)) %>% 
-    arrange(facility_type) %>%
-    mutate(total_sites = total_sites)
-   }
+    arrange(facility_type)
+}
 
- 
+
 # Extract OU name from joined data
 # Store as object named cntry
 get_countryname <- function(df){
@@ -116,7 +105,6 @@ get_countryname <- function(df){
 create_phc_gt <- function(df){
   df %>% 
     select(order(colnames(.))) %>% 
-    relocate(total_sites, .after = 8) %>% 
     gt() %>% 
     fmt_number(columns = c(2, 4, 6), 
                decimals = 0) %>% 
@@ -140,7 +128,7 @@ create_phc_gt <- function(df){
       )
     ) %>% 
     tab_header(
-      title = glue("{cntry}: PEPFAR (HTS_TST_POS, TX_CURR, TX_NEW) SUMMARY BY FACILITY TYPE")
+      title = glue("{cntry}: MER SUMMARY BY FACILITY TYPE")
     ) %>% 
     tab_source_note(
       source_note = gt::md(glue("Source: {metadata$source} & DATIM DAA Dataset | Ref id: {ref_id}"))) %>% 
