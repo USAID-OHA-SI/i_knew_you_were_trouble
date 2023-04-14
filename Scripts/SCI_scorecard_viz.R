@@ -19,6 +19,8 @@
   library(glue)
   library(readxl)
   library(googlesheets4)
+  library(rcartocolor)
+  library(ggnewscale)
   
 
 # GLOBAL VARIABLES --------------------------------------------------------
@@ -89,6 +91,39 @@ df_viz <- df_sci %>%
           panel.spacing.y = unit(.5, "lines"))
   
   si_save("Graphics/sci_scorecard.svg")
+  
+
+# POTENTIAL OPTION FOR ENCODING INDICES WITH COLOR ------------------------
+
+  ou_sort_order <- c("Zimbabwe", "Rwanda", "Botswana", "Malawi",
+                       "Eswatini", "Burundi", "Namibia","Zambia",
+                       "Nigeria", "Lesotho", "Thailand")
+  
+  # Alternative option with a gradient fill for the scores
+  df_viz %>%
+    mutate(country = fct_relevel(country, rev(ou_sort_order))) %>% 
+    ggplot(aes(indicator, country,
+               color = value), shape = 21) +
+    geom_point(size = 9) +
+    geom_point(size = 9, stroke = .9, shape = 1, color = grey90k) +
+    scale_color_carto_c(palette = "TealGrn") +
+    ggnewscale::new_scale_color() +
+    geom_text(vjust = .5, hjust = .5,
+              aes(label = value, 
+                  color = ifelse(value < 50, grey90k, "white")),
+              family = "Source Sans Pro SemiBold", 
+              size = 10/.pt) +
+    scale_color_identity() +
+    scale_x_discrete(position = "top", expand = c(.05, .05)) +
+    coord_cartesian(clip = "off") +
+    labs(x = NULL, y = NULL,
+         caption = glue("Source: {source_note} | Ref ID: {ref_id}")) +
+    si_style_nolines() +
+    theme(axis.text.y = element_markdown(),
+          strip.text.y = element_blank(),
+          panel.spacing.y = unit(.5, "lines"),
+          legend.position = "none")
+  
   
   
   
