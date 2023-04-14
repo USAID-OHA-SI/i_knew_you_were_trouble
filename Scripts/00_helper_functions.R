@@ -77,8 +77,18 @@ join_datim_assets <- function(df1, df2, df3, unique_var = sitename){
 #'
 #' @examples
 create_coverage_df <- function(df){
+  
+  total_sites <- df %>% 
+    filter(merge_status_two == "PEPFAR", !is.na(SA_FACILITY_TYPE)) %>%
+    mutate(facility_type = case_when(
+      is.na(SA_FACILITY_TYPE) ~ "Other",
+      TRUE ~ SA_FACILITY_TYPE
+    )) %>% 
+    distinct(sitename) %>% 
+    count() %>% pull()
+  
   df %>% 
-    filter(merge_status_two == "PEPFAR") %>%
+    filter(merge_status_two == "PEPFAR", !is.na(SA_FACILITY_TYPE)) %>%
     mutate(facility_type = case_when(
       is.na(SA_FACILITY_TYPE) ~ "Other",
       TRUE ~ SA_FACILITY_TYPE
@@ -88,7 +98,8 @@ create_coverage_df <- function(df){
     ungroup() %>% 
     mutate(across(c(HTS_TST_POS, TX_NEW, TX_CURR), \(x) percent(x / sum(x, na.rm = T), 1.0), .names = "{.col}_share"), 
            facility_type = fct_reorder(facility_type, TX_CURR, .desc = T)) %>% 
-    arrange(facility_type)
+    arrange(facility_type) %>% 
+    mutate(total_sites = total_sites)
 }
 
 
@@ -105,6 +116,7 @@ get_countryname <- function(df){
 create_phc_gt <- function(df){
   df %>% 
     select(order(colnames(.))) %>% 
+    relocate(total_sites, .after = 8) %>% 
     gt() %>% 
     fmt_number(columns = c(2, 4, 6), 
                decimals = 0) %>% 
