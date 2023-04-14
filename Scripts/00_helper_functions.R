@@ -1,5 +1,11 @@
 #Helper functions for the project
 
+# Focus countries for the project
+ou_list <- c("Botswana", "Cameroon", "Cote d'Ivoire", "Eswatini", 
+             "Ethiopia", "Lesotho", "Malawi","Mozambique", 
+             "Rwanda", "South Africa", "South Sudan", "Uganda",
+             "Zambia", "Zimbabwe")
+
 # Calculates the share for types of facilities
 calc_share <- function(df, ...){
   df %>% 
