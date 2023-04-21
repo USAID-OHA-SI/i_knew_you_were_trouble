@@ -40,8 +40,9 @@
 
   da_tbl <- googlesheets4::read_sheet(gs_id)
 
-# MUNGE ============================================================================
+# TABLE CREATION ============================================================================
   
+  # Create a highlighted attribute table focusing on Botswana and Malawi  
   da_tbl %>% 
       gt() %>% 
       fmt_number(columns = 3:4,
@@ -113,10 +114,12 @@
 
 # site count ============================================================================
 
+    # What are the site counts and share
     da_tbl %>% 
       filter(Country %in% ou_list) %>% 
       summarize(tot = sum(`Total Facilities`, na.rm = T),
-                tot_atrb = sum(`Facilities with attributes`))
+                tot_atrb = sum(`Facilities with attributes`),
+                completeness = tot_atrb / tot)
 
 
 

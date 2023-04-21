@@ -205,7 +205,9 @@ pepfar_footprint_gt_pivot <- function(df){
     gt() %>% 
     grand_summary_rows(columns = c(`Non-PEPFAR Site Count`, `PEPFAR Site Count`),
                        fns = list(
-                         Total = ~sum(.))
+                         Total = ~sum(.)), 
+                         formatter = fmt_number,
+                         decimals = 0
     ) %>%
     tab_options(
       source_notes.font.size = px(10)) %>% 
@@ -220,3 +222,26 @@ pepfar_footprint_gt_pivot <- function(df){
     cols_label(SA_FACILITY_TYPE = "Facility Type")
 }
 
+
+# Highlight certain rows for facility types
+# Set a standardized formatting for highlighting
+#' Title
+#'
+#' @param df 
+#' @param rowvar column variable to be highlighted on 
+#' @param fac_types type of facilities to highligh
+#'
+#' @return
+#' @export
+#'
+#' @examples
+row_highlight <- function(df, rowvar = SA_FACILITY_TYPE, 
+                          fac_types = c("Health Post", "Primary Health Center")) {
+  df %>%
+    gt_highlight_rows(
+      rows = {{ rowvar }} %in% fac_types,
+      fill = grey10k,
+      font_weight = 600,
+      alpha = 0.45
+    )
+}

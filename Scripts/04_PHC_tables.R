@@ -89,16 +89,26 @@
     # Fetch  country name for use in table headers
     cntry <- get_countryname(bts_sites_mer)
 
-    # PEPFAR footpring
+    # PEPFAR footprint
     pepfar_footprint_gt(bts_sites_mer)
-    pepfar_footprint_gt_pivot(bts_sites_mer)
-    
+    pepfar_footprint_gt_pivot(bts_sites_mer) %>% 
+      row_highlight(.) %>% 
+      gtsave_extra(filename = "Images/BTS_MER_summary_PEPFAR_type.png")
     
     # Summary table of indicators by facility type for Q1
     bts_gt_df <- create_coverage_df(bts_sites_mer)
       
     # Create a GT summary of the results
-    create_phc_gt(bts_gt_df) %>% 
+    create_phc_gt(bts_gt_df) %>%
+      gt_highlight_rows(
+        rows = facility_type %in% c("Health Post", "Primary Health Center"),
+        fill = grey10k,
+        font_weight = 600,
+        alpha = 0.45
+      ) %>% 
+      tab_options(
+        column_labels.font.size = px(15)
+      ) %>% 
       gtsave_extra(filename = "Images/BTS_MER_summary_by_facility_type.png")
     
     remove(cntry)
@@ -120,7 +130,12 @@
     mwi_sites_mer %>% 
       pepfar_footprint_gt()
     
-    pepfar_footprint_gt_pivot(mwi_sites_mer)
+    pepfar_footprint_gt_pivot(mwi_sites_mer) %>%
+    row_highlight(.) %>% 
+      tab_options(
+        column_labels.font.size = px(15)
+      ) %>% 
+      gtsave_extra(filename = "Images/MWI_MER_summary_PEPFAR_type.png")
     
     
     # Summary table of indicators by facility type for Q1
@@ -128,7 +143,11 @@
       create_coverage_df()
     
     mwi_gt_df %>%
-     create_phc_gt()
+     create_phc_gt() %>% 
+      row_highlight(., rowvar = facility_type) %>% 
+      tab_options(
+        column_labels.font.size = px(15)
+      ) %>% 
       gtsave_extra(filename = glue("Images/{cntry}_MER_summary_by_facility_type.png"))
     
 
