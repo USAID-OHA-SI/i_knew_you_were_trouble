@@ -21,9 +21,9 @@
   
   # Alt option
   ou_list <- c("Botswana", "Cameroon", "Cote d'Ivoire", "Eswatini", 
-                 "Ethiopia", "Lesotho", "Malawi","Mozambique", 
-                 "Rwanda", "South Africa", "South Sudan", "Uganda",
-                 "Zambia", "Zimbabwe")
+                "Ethiopia", "Lesotho", "Malawi","Mozambique", 
+                "Rwanda", "South Africa", "South Sudan", "Uganda",
+                "Zambia", "Zimbabwe")
   
   # Ref id
   ref_id <- "0062fc80"
