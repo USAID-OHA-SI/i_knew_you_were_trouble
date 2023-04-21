@@ -83,8 +83,18 @@ join_datim_assets <- function(df1, df2, df3, unique_var = sitename){
 #'
 #' @examples
 create_coverage_df <- function(df){
+  
+  total_sites <- df %>% 
+    filter(merge_status_two == "PEPFAR", !is.na(SA_FACILITY_TYPE)) %>%
+    mutate(facility_type = case_when(
+      is.na(SA_FACILITY_TYPE) ~ "Other",
+      TRUE ~ SA_FACILITY_TYPE
+    )) %>% 
+    distinct(sitename) %>% 
+    count() %>% pull()
+  
   df %>% 
-    filter(merge_status_two == "PEPFAR") %>%
+    filter(merge_status_two == "PEPFAR", !is.na(SA_FACILITY_TYPE)) %>%
     mutate(facility_type = case_when(
       is.na(SA_FACILITY_TYPE) ~ "Other",
       TRUE ~ SA_FACILITY_TYPE
@@ -94,7 +104,8 @@ create_coverage_df <- function(df){
     ungroup() %>% 
     mutate(across(c(HTS_TST_POS, TX_NEW, TX_CURR), \(x) percent(x / sum(x, na.rm = T), 1.0), .names = "{.col}_share"), 
            facility_type = fct_reorder(facility_type, TX_CURR, .desc = T)) %>% 
-    arrange(facility_type)
+    arrange(facility_type) %>% 
+    mutate(total_sites = total_sites)
 }
 
 
@@ -111,6 +122,7 @@ get_countryname <- function(df){
 create_phc_gt <- function(df){
   df %>% 
     select(order(colnames(.))) %>% 
+    relocate(total_sites, .after = 8) %>% 
     gt() %>% 
     fmt_number(columns = c(2, 4, 6), 
                decimals = 0) %>% 
@@ -165,3 +177,46 @@ pepfar_footprint_gt <- function(df){
     cols_label(SA_FACILITY_TYPE = "Facility Type",
                merge_status_two = "COVERAGE")
 }
+
+# PHC coverage summary table - pivoted
+pepfar_footprint_gt_pivot <- function(df){
+  df %>% 
+    filter(merge_status == "merged") %>%
+    distinct(orgunituid, merge_status_two, SA_FACILITY_TYPE) %>%
+    count(SA_FACILITY_TYPE, merge_status_two, sort = T) %>%
+    pivot_wider(names_from = "merge_status_two", values_from  = "n") %>% 
+    mutate(total = `non-PEPFAR` + PEPFAR,
+           total_2 = sum(total),
+           pepfar_share = PEPFAR / total_2,
+           non_pepfar_share = `non-PEPFAR` / total_2) %>% 
+    mutate(pepfar_share = percent(pepfar_share, 1),
+           non_pepfar_share = percent(non_pepfar_share, 1)) %>% 
+    # mutate(`non-PEPFAR` = str_c(`non-PEPFAR`, " (",non_pepfar_share, ")")) %>% 
+    # mutate(PEPFAR = str_c(PEPFAR, " (",pepfar_share, ")")) %>% 
+    mutate(fac_type = fct_reorder(SA_FACILITY_TYPE, pepfar_share, .desc = T)) %>% 
+    # arrange(fac_type, `non-PEPFAR`, non_pepfar_share, PEPFAR, pepfar_share) %>%
+    select(-c(total, total_2)) %>% 
+    # relocate(non_pepfar_share, .after = 2) %>% 
+    # relocate(pepfar_share, .after = PEPFAR) %>%
+    rename(`Non-PEPFAR Share` = non_pepfar_share,
+           `PEPFAR Share` = pepfar_share,
+           `PEPFAR Site Count` = PEPFAR,
+           `Non-PEPFAR Site Count` = `non-PEPFAR`) %>% 
+    gt() %>% 
+    grand_summary_rows(columns = c(`Non-PEPFAR Site Count`, `PEPFAR Site Count`),
+                       fns = list(
+                         Total = ~sum(.))
+    ) %>%
+    tab_options(
+      source_notes.font.size = px(10)) %>% 
+    gt_theme_nytimes() %>% 
+    tab_header(
+      title = glue("{cntry} SGAC DAA SUMMARY BY FACILITY TYPE")) %>%
+    tab_source_note(
+      source_note = gt::md(glue("Source: DATIM Data Alignment Activity Attribute Data 2023"))) %>%
+    tab_options(
+      source_notes.font.size = px(10)) %>%
+    cols_hide(fac_type) %>%
+    cols_label(SA_FACILITY_TYPE = "Facility Type")
+}
+
