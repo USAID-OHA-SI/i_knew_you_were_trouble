@@ -24,6 +24,7 @@
     
   # SI specific paths/functions  
     load_secrets()
+    source("Scripts/00_helper_functions.R")
 
       
   # Objects
@@ -75,11 +76,6 @@
       
   
 # VIZ ============================================================================
-
-    ou_list <- c("Botswana", "Cameroon", "Cote d'Ivoire", "Eswatini", 
-                 "Ethiopia", "Lesotho", "Malawi","Mozambique", 
-                 "Rwanda", "South Africa", "South Sudan", "Uganda",
-                 "Zambia", "Zimbabwe")
     
     #facilities covered in round two analysis
     da_tbl %>% 
