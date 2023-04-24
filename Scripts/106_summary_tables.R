@@ -122,7 +122,8 @@ library(gt)
       tab_source_note(
         source_note = gt::md(glue("Source: DATIM Data Alignment Activity Attribute Data & DATIM API 2023"))) %>%
       tab_options(
-        source_notes.font.size = px(10)) %>%
+        source_notes.font.size = px(10),
+        column_labels.font.size = px(15)) %>%
       gt_highlight_cols(
         columns = c(`PEPFAR Share`,`non-PEPFAR Share`),
         fill = grey10k,
