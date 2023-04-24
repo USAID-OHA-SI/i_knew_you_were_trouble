@@ -135,7 +135,7 @@
   # Flatten the data into a single dataframe and save as an R file
   site_attrib_df %>% 
     list_rbind() %>% 
-    mutate(operatingunit = ifelse(operatingunit == "CI", "Cote d'Ivoire")) %>% 
+    mutate(operatingunit = ifelse(operatingunit == "CI", "Cote d'Ivoire", operatingunit)) %>% 
     saveRDS(., file = "Dataout/site_attrib_df")
 
   
