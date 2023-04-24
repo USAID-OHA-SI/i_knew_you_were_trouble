@@ -26,6 +26,7 @@ library(gt)
   
   # SI specific paths/functions  
     load_secrets()
+    source("Scripts/00_helper_functions.R")
   
   ref_id <- "bc27f98d"
 
@@ -62,7 +63,7 @@ library(gt)
       rename(sitename = facilityname) 
     
   #join DATIM API data to DAA (verify that this is the correct way to join)
-    df_gt_all <- daa_df %>% 
+    df_gt_all <- df_daa %>% 
       tidylog::left_join(api_tagged, by = c("orgunit_internal_id" = "orgunituid")) %>% 
       mutate(merge_status_two = ifelse(is.na(sitename), "non-PEPFAR", "PEPFAR")) %>% 
       rename(orgunituid= orgunit_parent_internal_id)
