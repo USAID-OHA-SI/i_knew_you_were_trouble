@@ -50,9 +50,10 @@
 
   df_daa <- readRDS("Dataout/daa_fac_df") %>% 
     filter(regionorcountry_name == "Malawi")
-  
-  df_msd <- readRDS("Dataout/msd_site_dfs") %>% 
-    filter(operatingunit == "Malawi")
+
+  # Not used 
+  # df_msd <- readRDS("Dataout/msd_site_dfs") %>% 
+  #   filter(operatingunit == "Malawi")
   
   df_api <- vroom::vroom(dl$local_path) %>% 
     filter(operatingunit %in% "Malawi", sitetype == "Facility") 
@@ -76,12 +77,9 @@
                                                                        level = .x))
   names(mwi_geo) <- list("adm0", "psnu")
   
-  # Breaking change to extract_facilities required modificatio in workflow (issues submitted in gisr)
+  # Breaking change to extract_facilities required modification in workflow (issues submitted in gisr)
   df_locs_mwi <- gisr::extract_locations(cntry, level = 7) %>% 
-    dplyr::filter(label == "facility") %>% 
-    tidyr::unnest_wider(coordinates, names_sep = "_") %>% 
-    janitor::clean_names() %>% 
-    dplyr::rename(longitude = "coordinates_1", latitude = "coordinates_2")
+    extract_facilities()
 
 
 # MUNGE -------------------------------------------------------------------
@@ -153,10 +151,10 @@
       TRUE ~ "Other"
     ),
     pepfar_hp = case_when(
-      fac_type == "Health Center or Post" & pepfar_fp == "PEPFAR" ~ "HC or HP PEPFAR",
-      fac_type == "Health Center or Post" & is.na(pepfar_fp) ~ "HC or HP NON-PEPFAR",
-      fac_type == "Other" & pepfar_fp == "PEPFAR" ~ "OTHER PEPFAR",
-      TRUE ~ "OTHER NON-PEPFAR"
+      fac_type == "Health Center or Post" & pepfar_fp == "PEPFAR" ~ "Health Center or Post \nPEPFAR",
+      fac_type == "Health Center or Post" & is.na(pepfar_fp) ~ "Health Center or Post \nNON-PEPFAR",
+      fac_type == "Other" & pepfar_fp == "PEPFAR" ~ "Other Facilities \nPEPFAR",
+      TRUE ~ "Other Facilities \n NON-PEPFAR    "
     ))
 
   # CREATE MAPS
@@ -178,8 +176,8 @@
       strip.text = element_textbox(
         size = 12,
         color = "white", fill = scooter, box.color = grey90k,
-        halign = 0.5, linetype = 1, r = unit(5, "pt"), width = unit(1, "npc"),
-        padding = margin(2, 0, 1, 0), margin = margin(3, 3, 3, 3)
+        halign = 0.5, linetype = 1, r = unit(7, "pt"), width = unit(1, "npc"),
+        padding = margin(5, 5, 5, 5), margin = margin(3, 3, 3, 3)
       )
     )
   
