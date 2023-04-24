@@ -1,5 +1,5 @@
 # AUTHOR:   K. Srikanth | USAID
-# PURPOSE:  
+# PURPOSE:  summary table across OUs
 # REF ID:   bc27f98d 
 # LICENSE:  MIT
 # DATE:     2023-04-20
@@ -37,16 +37,16 @@ library(gt)
   temp <- tempfile(fileext = ".zip")
   dl <- drive_download(as_id(ss_sites), path = temp, overwrite = T)
   
+  # Notes - "[^\/]+$" matches the non-slashes substring right at the end of what you test
+  # Contains all site types including community  
+  datim_sites_api <- vroom::vroom(dl$local_path) %>% 
+    filter(operatingunit %in% ou_list) %>% 
+    mutate(facilityname = str_extract(orgunit_hierarchy, "([^\\/]+$)"), .after = orgunit_hierarchy)
+  
   #attribute data from 103_download_daa_deou_facilities
   df_daa <- readRDS("Dataout/daa_fac_df") 
 
 # MUNGE -------------------------------------------------------------------
-  
-  # Notes - "[^\/]+$" matches the non-slashes substring right at the end of what you test
-  # Contains all site types including community  
-    datim_sites_api <- vroom::vroom(dl$local_path) %>% 
-    filter(operatingunit %in% ou_list) %>% 
-    mutate(facilityname = str_extract(orgunit_hierarchy, "([^\\/]+$)"), .after = orgunit_hierarchy)
 
   #prep API data - filter to facility sites and pivot indicator type
     api_tagged <- datim_sites_api %>% 
@@ -69,7 +69,7 @@ library(gt)
     
 # VIZ -----------------------------------------------------------------------------------
     
-  #prep data for GT table  
+  #prep data for summary #1: PEPFAR share of health facilities by OU 
   df_gt_viz <-  df_gt_all %>% 
       mutate(indicator_type = case_when(DSD ==1 & TA ==1 ~ "DSD & TA",
                                         DSD == 1 & is.na(TA) ~ "DSD",
@@ -93,6 +93,7 @@ library(gt)
              `non-PEPFAR Share` = percent(`non-PEPFAR Share`, 1)) %>% 
       rename(Country = regionorcountry_name)
     
+    #Summary table #1: PEPFAR share of health facilities by OU 
     df_gt_viz %>% 
       gt() %>% 
       fmt_number(columns = c(2,3,4,5,7), 
