@@ -290,3 +290,79 @@ relevel_fac_type <- function(df, facility_type = fac_type){
   df %>% 
     mutate(fac_type = fct_relevel({{facility_type}}, fac_order))
 }
+
+
+#' summary table by OUs starter code (table 2 and table 3)
+#'
+#' @param df 
+#' @param viz_type type of summary table generated: `02_share_over_total` or `03_pepfar_share_hp_phc`
+#'
+#' @return
+#' @export
+#'
+#' @examples
+summary_tbl_ou_starter <- function(df, viz_type) {
+  
+  if (viz_type == "02_share_over_total") {
+    pct_cols <- c(3,5,7)
+    num_cols <- c(2,4,6)
+    col_breaks <- c(2, 4, 6, 8)
+    bold_col <- c(8)
+  } else if (viz_type == "03_pepfar_share_hp_phc") {
+    pct_cols <- c(4,7)
+    num_cols <- c(2,3,5,6)
+    col_breaks <- c(2, 5)
+    bold_col <- c(2,6)
+  }
+  
+  df %>% 
+    gt() %>% 
+    sub_missing(missing_text = ".",
+    ) %>% 
+    fmt_percent(columns = pct_cols,
+                decimals = 0) %>%
+    fmt_number(columns = num_cols,
+               decimal = 0) %>%
+    # cols_label(phc_share = "(share)",
+    #            health_post_share = "(share)", 
+    #            `Primary Health Center` = "PEPFAR Supported Primary Health Centers",
+    #            `Health Post` = "PEPFAR Supported Health Posts",
+    #            total_hp = "Total Health Posts" ,
+    #            total_phc = "Total Primary Health Centers") %>% 
+    cols_align(align = "left", columns = 1) %>% 
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("left"), 
+          color = trolley_grey_light,
+          weight = px(2)
+        )
+      ),
+      locations = list(
+        cells_body(
+          columns = col_breaks
+        )
+      )
+    ) %>% 
+    gt_theme_nytimes() %>% 
+    # tab_header(
+    #   title = glue("SHARE OF PRIMARY HEALTH CENTERS AND HEALTH POSTS SUPPORTED BY PEPFAR")
+    # ) %>% 
+    tab_source_note(
+      source_note = gt::md(glue("Source: DATIM DAA Site Attribute Data | Ref id: {ref_id}"))) %>% 
+    tab_options(
+      source_notes.font.size = px(10),
+      column_labels.font.size = px(15)) %>% 
+    # Highlighting max value within each column
+    # gt_color_rows(columns = c(4,7), na.color = "white", 
+    #               palette = c("#f7f7f7", golden_sand)) %>% 
+    tab_style(
+      style = list(
+        cell_text(weight = 600)
+      ),
+      locations = cells_body(
+        columns = bold_col
+      )
+    )
+  
+}
