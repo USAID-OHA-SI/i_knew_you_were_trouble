@@ -258,8 +258,14 @@ row_highlight <- function(df, rowvar = SA_FACILITY_TYPE,
 
 collapse_fac_type <- function(df, unique_var = value) {
   df %>% 
-    mutate(fac_type = ifelse({{unique_var}} %in% c("Dispensary/Pharmacy",
-                                                   "Other Facility",
-                                                   "Standalone Laboratory",
-                                                   "Temporary Facility"), "Other Facility", {{unique_var}})) 
-}
+    mutate(fac_type = case_when(
+      {{unique_var}} %in% c("Dispensary/Pharmacy",
+                            "Other Facility",
+                            "Standalone Laboratory",
+                            "Temporary Facility") ~ "Other Facility",
+      is.na({{unique_var}}) ~ "Missing info",
+      TRUE ~ {{unique_var}}
+      )
+    )
+  }
+
