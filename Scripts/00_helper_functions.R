@@ -269,3 +269,24 @@ collapse_fac_type <- function(df, unique_var = value) {
     )
   }
 
+
+
+
+#' Relevel facilty types when coercing to a factor
+#'
+#' @param df 
+#' @param facility_type 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+
+relevel_fac_type <- function(df, facility_type = fac_type){
+  
+  fac_order <- c("Primary Health Center", "Health Post", "Hospital", 
+    "Mobile Health Clinic", "Other Facility", "Missing info")
+  
+  df %>% 
+    mutate(fac_type = fct_relevel({{facility_type}}, fac_order))
+}
