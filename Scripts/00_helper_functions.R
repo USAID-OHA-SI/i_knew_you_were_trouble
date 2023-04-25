@@ -285,7 +285,7 @@ collapse_fac_type <- function(df, unique_var = value) {
 relevel_fac_type <- function(df, facility_type = fac_type){
   
   fac_order <- c("Primary Health Center", "Health Post", "Hospital", 
-    "Mobile Health Clinic", "Other Facility", "Missing info")
+    "Mobile Health Clinic", "Other Facility", "Missing info", "Above site")
   
   df %>% 
     mutate(fac_type = fct_relevel({{facility_type}}, fac_order))
