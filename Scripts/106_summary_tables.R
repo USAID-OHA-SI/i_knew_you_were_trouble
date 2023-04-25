@@ -91,8 +91,7 @@ library(gt)
       mutate(total = sum(n)) %>%
       ungroup() %>%
       pivot_wider(names_from = "indicator_type", values_from  = "n") %>% 
-      mutate(`DSD & TA` = ifelse(is.na(`DSD & TA`), 0, `DSD & TA`),
-             TA = ifelse(is.na(TA), 0, TA)) %>% 
+      replace(is.na(.), 0) %>% 
       mutate(`PEPFAR Share` = (DSD + TA + `DSD & TA`)/total,
              `non-PEPFAR Share` = `Not PEPFAR Supported`/total) %>% 
       relocate(`Not PEPFAR Supported`, .after = `PEPFAR Share`) %>% 
@@ -100,11 +99,15 @@ library(gt)
       arrange(desc(`PEPFAR Share`)) %>% 
       mutate(`PEPFAR Share` = percent(`PEPFAR Share`, 1),
              `non-PEPFAR Share` = percent(`non-PEPFAR Share`, 1)) %>% 
-      rename(Country = regionorcountry_name)
+      rename(Country = regionorcountry_name) %>% 
+      mutate(TA = ifelse(TA == 0, NA, TA),
+             `DSD & TA` = ifelse(`DSD & TA` == 0, NA, `DSD & TA`))
     
     #Summary table #1: PEPFAR share of health facilities by OU 
     df_gt_viz1 %>% 
       gt() %>% 
+      sub_missing(missing_text = ".",
+      ) %>%  
       fmt_number(columns = c(2,3,4,5,7), 
                  decimals = 0) %>% 
       cols_hide(total) %>% 
@@ -239,5 +242,20 @@ library(gt)
     gt_fac_by_total_site
     
     gtsave_extra(gt_fac_by_total_site, filename = glue("Images/TABLE_2_FAC_BY_TOTAL_SITE.png"))  
+    
+  # SUMMARY #3 -------------------------------------------------------------------
+    
+    df_gt_all %>% 
+      # pivot_daa() %>% 
+      filter(dataelement == "SA_FACILITY_TYPE") %>%
+      #  mutate(fac_type = collapse_2())
+      collapse_fac_type(., unique_var = value) %>%
+      distinct(regionorcountry_name, orgunit_internal_id, merge_status_two, fac_type) %>%
+      count(regionorcountry_name, merge_status_two, fac_type, sort = T) %>% 
+      group_by(regionorcountry_name) %>%
+      mutate(total_attr = sum(n)) %>% 
+      ungroup() %>% 
+      pivot_wider(names_from = "fac_type", values_from  = "n") %>% view()
+      select(regionorcountry_name, `Primary Health Center`, `Health Post`)
     
   
