@@ -245,3 +245,21 @@ row_highlight <- function(df, rowvar = SA_FACILITY_TYPE,
       alpha = 0.45
     )
 }
+
+
+#' collapse facility type groups to new variable `fac_type`
+#'
+#' @param df 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+
+collapse_fac_type <- function(df, unique_var = value) {
+  df %>% 
+    mutate(fac_type = ifelse({{unique_var}} %in% c("Dispensary/Pharmacy",
+                                                   "Other Facility",
+                                                   "Standalone Laboratory",
+                                                   "Temporary Facility"), "Other Facility", {{unique_var}})) 
+}
