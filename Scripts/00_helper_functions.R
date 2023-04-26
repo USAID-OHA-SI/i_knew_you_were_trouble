@@ -291,6 +291,37 @@ relevel_fac_type <- function(df, facility_type = fac_type){
     mutate(fac_type = fct_relevel({{facility_type}}, fac_order))
 }
 
+#' returns dataframe of site totals from DAA and PEPFAR site totals
+#'
+#' @param df 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_ou_site_totals <- function(df) {
+  
+  df_totals <- df %>% 
+    mutate(indicator_type = case_when(DSD ==1 & TA ==1 ~ "DSD & TA",
+                                      DSD == 1 & is.na(TA) ~ "DSD",
+                                      TA == 1 & is.na(DSD) ~ "TA",
+                                      # is.na(DSD) & is.na(TA) & merge_status_two == "PEPFAR" ~ "No Support Type",
+                                      TRUE ~ "Not PEPFAR Supported")) %>% 
+    distinct(regionorcountry_name, orgunit_internal_id, merge_status_two, indicator_type) %>%
+    count(regionorcountry_name, indicator_type, sort = T) %>% 
+    group_by(regionorcountry_name) %>%
+    mutate(total_sites = sum(n)) %>% 
+    ungroup() %>% 
+    filter(indicator_type != "Not PEPFAR Supported") %>% 
+    group_by(regionorcountry_name) %>%
+    mutate(total_pepfar_sites = sum(n)) %>%
+    ungroup() %>% 
+    distinct(regionorcountry_name, total_sites, total_pepfar_sites)
+  
+  return(df_totals)
+  
+}
+
 
 #' summary table by OUs starter code (table 2 and table 3)
 #'
