@@ -453,12 +453,6 @@ gt_theme_phc <- function (gt_object, ...)
     #   weight = 400
     # ), 
     # locations = cells_summary()
-    ) %>%
-    tab_style(style = cell_text(
-      font = google_font("Source Sans Pro"),
-      weight = 600
-    ), 
-    locations = cells_grand_summary()
-    )
+    ) 
 }
 

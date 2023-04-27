@@ -153,11 +153,23 @@
         ) %>% 
         tab_source_note(
           source_note = gt::md(glue::glue("DATIM Data Alignment Activity Attribute Data & DATIM API 2023"))
-        ) 
+        ) %>% 
+        tab_style(style = cell_text(
+          font = google_font("Source Sans Pro"),
+          weight = 600
+        ), 
+        locations = cells_grand_summary()
+        ) %>% 
+        tab_style(style = cell_text(
+        font = google_font("Source Sans Pro"),
+        weight = 400
+          ),
+        locations = cells_summary()
+        )
     }
 
   # Test age/sex summary table 
-  make_msd_tbl(df_msd_phc, ou = "Zambia")
+  make_msd_tbl(df_msd_phc, ou = "South Africa")
     
   # Batch and save
   map(ou_list, ~make_msd_tbl(df_msd_phc, ou = .x) %>% 
@@ -220,8 +232,13 @@
               Overall = ~sum(., na.rm = T)), 
             formatter = fmt_number,
             decimals = 0
-      ) 
-    
+          ) %>% 
+        tab_style(style = cell_text(
+            font = google_font("Source Sans Pro"),
+            weight = 600
+          ), 
+          locations = cells_grand_summary()
+          )
     }
 
   # Pick an OU and test, then batch
@@ -239,47 +256,63 @@
 
 # Summary Table of Site Attributes by OU ----------------------------------
 
-  df_phc %>% 
-    count(regionorcountry_name, value) %>% 
-    mutate(value = ifelse(is.na(value), "Missing info", value)) %>% 
-    spread(value, n) %>% 
-    relocate(c(3, 4, 8), .after = 1) %>% 
-    relocate(4, .after = 1) %>% 
-    relocate(6, .after = last_col()) %>% 
-    arrange(desc(`Primary Health Center`)) %>% 
-    mutate(cntry_grp = case_when(
-      str_detect(regionorcountry_name, "Moz|Malawi|Zimb|Zam|South Africa|Uga") ~ "Large TX OUs",
-      TRUE ~ "Small TX OUs"
-    ),
-      cntry_grp = fct_relevel(cntry_grp, c("Large TX OUs", "Small TX OUs"))) %>% 
-    arrange(cntry_grp) %>% 
-    gt(groupname_col = "cntry_grp",
-       rowname_col  = "regionorcountry_name") %>% 
-    fmt_number(columns = is.numeric, decimals = 0) %>% 
-    tab_spanner(columns = c(2, 3), 
-                label = "focus",gather = T) %>% 
+  df_phc %>%
+    count(regionorcountry_name, value) %>%
+    mutate(value = ifelse(is.na(value), "Missing info", value)) %>%
+    spread(value, n) %>%
+    relocate(c(3, 4, 8), .after = 1) %>%
+    relocate(4, .after = 1) %>%
+    relocate(6, .after = last_col()) %>%
+    arrange(desc(`Primary Health Center`)) %>%
+    mutate(
+      cntry_grp = case_when(
+        str_detect(regionorcountry_name, "Moz|Malawi|Zimb|Zam|South Africa|Uga") ~ "Large TX OUs",
+        TRUE ~ "Small TX OUs"
+      ),
+      cntry_grp = fct_relevel(cntry_grp, c("Large TX OUs", "Small TX OUs"))
+    ) %>%
+    arrange(cntry_grp) %>%
+    gt(
+      groupname_col = "cntry_grp",
+      rowname_col = "regionorcountry_name"
+    ) %>%
+    fmt_number(columns = is.numeric, decimals = 0) %>%
+    tab_spanner(
+      columns = c(2, 3),
+      label = "focus", gather = T
+    ) %>%
     grand_summary_rows(
       columns = is.numeric,
       fns = list(
-        Overall = ~sum(., na.rm = T)), 
+        Overall = ~ sum(., na.rm = T)
+      ),
       formatter = fmt_number,
       decimals = 0
-    ) %>% 
-    sub_missing(missing_text = ".") %>% 
+    ) %>%
+    sub_missing(missing_text = ".") %>%
     tab_header(
       title = glue::glue("SUMMARY OF OU SITE ATTRIBUTES")
-    ) %>% 
-    gt_theme_phc() %>% 
-    tab_options(row_group.font.weight = "bold",
-                row_group.font.size = px(14),
-                data_row.padding = px(1),
-                table.width = pct(75)
-                ) %>% 
+    ) %>%
+    gt_theme_phc() %>%
+    tab_options(
+      row_group.font.weight = "bold",
+      row_group.font.size = px(14),
+      data_row.padding = px(5),
+      table.width = pct(75)
+    ) %>%
     tab_source_note(
       source_note = gt::md(glue::glue("DATIM Data Alignment Activity Attribute Data 2023"))
-    ) %>% 
+    ) %>%
     tab_options(
-      source_notes.font.size = px(10)) %>% 
+      source_notes.font.size = px(10)
+    ) %>%
+    tab_style(
+      style = cell_text(
+        font = google_font("Source Sans Pro"),
+        weight = 600
+      ),
+      locations = cells_grand_summary()
+    )
     gtsave(filename = glue("Images/daa_site_overall_summary.png"))
     
   

@@ -62,10 +62,7 @@
     df_api %>% select(operatingunit:indicatortype) %>% 
     mutate(value = 1) %>% 
     pivot_wider(names_from = indicatortype, values_from = value) %>% 
-    mutate(pepfar_fp = case_when(
-      is.na(DSD) & is.na(TA) ~ "Non-PEPFAR",
-      TRUE ~ "PEPFAR"
-    )) %>% 
+    mutate(pepfar_fp = "PEPFAR") %>% 
     arrange(pepfar_fp) %>% prinf()
 
   # GIS data
@@ -158,7 +155,7 @@
     ))
 
   # CREATE MAPS
-  terrain_map(countries = mwi_geo$adm0,
+  p <- terrain_map(countries = mwi_geo$adm0,
               adm0 = mwi_geo$adm0,
               terr = glamr::si_path("path_raster"), 
               mask = T) +
@@ -180,7 +177,10 @@
         padding = margin(5, 5, 5, 5), margin = margin(3, 3, 3, 3)
       )
     )
-  
+
+  # Add a drop shadow underneath it all  
+  gginnards::append_layers(p,  ggfx::with_shadow(geom_sf(data = mwi_geo$adm0), colour = grey50k, sigma = 2), position = "bottom")  
+
   si_save("Graphics/MWI_PEPFAR_footprint_by_site_attribute.svg")
   
 
