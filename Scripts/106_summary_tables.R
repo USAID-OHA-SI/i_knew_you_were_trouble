@@ -163,10 +163,15 @@ library(gt)
         title = glue("SHARE OF HEALTH FACILITIES SUPPORTED BY PEPFAR BY OU")) %>%
       tab_source_note(
         source_note = gt::md(glue("Source: DATIM Data Alignment Activity Attribute Data & DATIM API 2023"))) %>%
+      # tab_options(
+      #   source_notes.font.size = px(10),
+      #   row_group.font.weight = "bold",
+      #   column_labels.font.size = px(15)) %>%
       tab_options(
         source_notes.font.size = px(10),
         row_group.font.weight = "bold",
-        column_labels.font.size = px(15)) %>%
+        data_row.padding = px(1), 
+        column_labels.font.size = px(15)) %>% 
       gt_highlight_cols(
         columns = c(`PEPFAR Share`,`non-PEPFAR Share`),
         fill = grey10k,

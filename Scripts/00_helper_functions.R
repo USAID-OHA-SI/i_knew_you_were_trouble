@@ -400,6 +400,7 @@ summary_tbl_ou_starter <- function(df, viz_type) {
     tab_options(
       source_notes.font.size = px(10),
       row_group.font.weight = "bold",
+      data_row.padding = px(1), 
       column_labels.font.size = px(15)) %>% 
     # Highlighting max value within each column
     # gt_color_rows(columns = c(4,7), na.color = "white", 
