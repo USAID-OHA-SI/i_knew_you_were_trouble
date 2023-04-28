@@ -349,6 +349,10 @@
     relocate(4, .after = 1) %>%
     relocate(6, .after = last_col()) %>%
     arrange(desc(`Primary Health Center`)) %>%
+    rowwise() %>% 
+    mutate(Total = sum(c_across(where(is.numeric)), na.rm = T)) %>% 
+    mutate(`Share` = (sum(c_across(c(2, 3)), na.rm = T) / Total), .after = `Health Post`) %>% 
+    ungroup() %>% 
     mutate(
       cntry_grp = case_when(
         str_detect(regionorcountry_name, "Moz|Malawi|Zimb|Zam|South Africa|Uga") ~ "Large TX OUs",
@@ -356,18 +360,21 @@
       ),
       cntry_grp = fct_relevel(cntry_grp, c("Large TX OUs", "Small TX OUs"))
     ) %>%
-    arrange(cntry_grp) %>%
+    arrange(cntry_grp) %>% 
     gt(
       groupname_col = "cntry_grp",
       rowname_col = "regionorcountry_name"
     ) %>%
-    fmt_number(columns = is.numeric, decimals = 0) %>%
+    fmt_number(columns = where(is.integer), 
+               decimals = 0) %>% 
+    fmt_percent(columns = where(is.double), 
+                decimals = 0) %>%
     tab_spanner(
-      columns = c(2, 3),
-      label = "focus", gather = T
+      columns = c(2, 3, 4),
+      label = "focus facilities", gather = T
     ) %>%
     grand_summary_rows(
-      columns = is.numeric,
+      columns = where(is.integer),
       fns = list(
         Overall = ~ sum(., na.rm = T)
       ),
@@ -397,7 +404,13 @@
         weight = 600
       ),
       locations = cells_grand_summary()
-    )
+    ) %>% 
+    gt_highlight_cols(
+      columns = c(2:4, Total),
+      fill = grey10k,
+      font_weight = 600,
+      alpha = 0.45
+    ) %>% 
     gtsave(filename = glue("Images/daa_site_overall_summary.png"))
     
   
