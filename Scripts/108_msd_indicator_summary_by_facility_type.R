@@ -447,7 +447,7 @@
   
 gen_tile_fill(api_prop)
   
-  96daa <- make_waffle(100) + labs(title = "DAA Sites") + 
+  daa <- make_waffle(100) + labs(title = "DAA Sites") + 
     annotate("text", x = 1, y = 9.5, label = label_number_si(accuracy = 0.1)(daa_ban), size = 20/.pt )
   
   api <- make_waffle(gen_tile_fill(api_prop), clr = c(scooter_med, grey20k)) + labs(title = "DATIM API Sites") +
