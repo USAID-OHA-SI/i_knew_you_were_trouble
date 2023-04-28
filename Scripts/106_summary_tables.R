@@ -48,7 +48,9 @@ library(gt)
   df_daa <- readRDS("Dataout/daa_fac_df") 
   
   #attribute data from 103_download_daa_deou_facilities
-  df_daa_sa <- readRDS("Dataout/site_attrib_df") 
+  df_daa_sa <- readRDS("Dataout/site_attrib_df") %>% 
+    filter(dataelement == "SA_FACILITY_TYPE")
+    
   
   
 
@@ -83,17 +85,19 @@ library(gt)
       mutate(indicator_type = case_when(DSD ==1 & TA ==1 ~ "DSD & TA",
                                         DSD == 1 & is.na(TA) ~ "DSD",
                                         TA == 1 & is.na(DSD) ~ "TA",
-                                       # is.na(DSD) & is.na(TA) & merge_status_two == "PEPFAR" ~ "No Support Type",
+                                        is.na(DSD) & is.na(TA) & merge_status_two == "PEPFAR" ~ "HSS Sites",
                                         TRUE ~ "Not PEPFAR Supported")) %>% 
       distinct(regionorcountry_name, orgunit_internal_id, merge_status_two, indicator_type) %>%
       count(regionorcountry_name, indicator_type, sort = T) %>% 
-      group_by(regionorcountry_name) %>%
-      mutate(total = sum(n)) %>%
-      ungroup() %>%
+      # group_by(regionorcountry_name) %>%
+      # mutate(total = sum(n)) %>%
+      # ungroup() %>%
       pivot_wider(names_from = "indicator_type", values_from  = "n") %>% 
-      replace(is.na(.), 0) %>% 
-      mutate(`PEPFAR Share` = (DSD + TA + `DSD & TA`)/total,
-             `non-PEPFAR Share` = `Not PEPFAR Supported`/total) %>% 
+      replace(is.na(.), 0) %>%
+      mutate(total_pepfar = DSD + TA + `DSD & TA` + `HSS Sites`,
+             total_fac = total_pepfar + `Not PEPFAR Supported`) %>% 
+      mutate(`PEPFAR Share` = (DSD + TA + `DSD & TA` + `HSS Sites`)/total_fac,
+             `non-PEPFAR Share` = `Not PEPFAR Supported`/total_fac) %>% 
       relocate(`Not PEPFAR Supported`, .after = `PEPFAR Share`) %>% 
       relocate(TA, .after = DSD) %>% 
       arrange(desc(`PEPFAR Share`)) %>% 
@@ -101,16 +105,30 @@ library(gt)
              `non-PEPFAR Share` = percent(`non-PEPFAR Share`, 1)) %>% 
       rename(Country = regionorcountry_name) %>% 
       mutate(TA = ifelse(TA == 0, NA, TA),
-             `DSD & TA` = ifelse(`DSD & TA` == 0, NA, `DSD & TA`))
+             `DSD & TA` = ifelse(`DSD & TA` == 0, NA, `DSD & TA`)) %>% 
+      relocate(`HSS Sites`, .after = `DSD & TA`) %>% 
+      select(Country, total_pepfar, DSD, TA, `DSD & TA`, `HSS Sites`,
+             `PEPFAR Share`, `Not PEPFAR Supported`,`non-PEPFAR Share`)
     
     #Summary table #1: PEPFAR share of health facilities by OU 
     df_gt_viz1 %>% 
       gt() %>% 
       sub_missing(missing_text = ".",
       ) %>%  
-      fmt_number(columns = c(2,3,4,5,7), 
+      fmt_number(columns = c(2,3,4,5,6,8), 
                  decimals = 0) %>% 
-      cols_hide(total) %>% 
+   #   cols_hide(total) %>% 
+      tab_row_group(
+        label = "Smaller TX OUs",
+        rows = Country %ni% c("Mozambique", "South Africa", "Zimbabwe",
+                              "Zambia", "Uganda", "Malawi")
+      ) %>%
+      tab_row_group(
+        label = "Larger TX OUs",
+        rows = Country %in% c("Mozambique", "South Africa", "Zimbabwe",
+                 "Zambia", "Uganda", "Malawi")
+      ) %>% 
+      cols_label(total_pepfar = "Total PEPFAR-Supported Sites") %>% 
       tab_style(
         style = list(
           cell_borders(
@@ -121,19 +139,25 @@ library(gt)
         ),
         locations = list(
           cells_body(
-            columns = c(3, 7)
+            columns = c(2, 3,8)
           )
         )
       ) %>% 
       tab_options(
         source_notes.font.size = px(10)) %>% 
-      gt_theme_nytimes() %>% 
+    #  gt_theme_nytimes() %>% 
+      gt_theme_phc() %>% 
+      tab_spanner(columns = 2:7,
+                  label = "PEPFAR-SUPPORTED") %>% 
+      tab_spanner(columns = 8:9,
+                  label = "NOT PEPFAR-SUPPORTED") %>%
       tab_header(
         title = glue("SHARE OF HEALTH FACILITIES SUPPORTED BY PEPFAR BY OU")) %>%
       tab_source_note(
         source_note = gt::md(glue("Source: DATIM Data Alignment Activity Attribute Data & DATIM API 2023"))) %>%
       tab_options(
         source_notes.font.size = px(10),
+        row_group.font.weight = "bold",
         column_labels.font.size = px(15)) %>%
       gt_highlight_cols(
         columns = c(`PEPFAR Share`,`non-PEPFAR Share`),
@@ -141,7 +165,15 @@ library(gt)
         font_weight = 400,
         alpha = 0.45
       ) %>% 
-      gtsave_extra(filename = glue("Images/PEPFAR_SUPPORT_BY_OU2.png"))
+      tab_style(
+        style = list(
+          cell_text(weight = 600)
+        ),
+        locations = cells_body(
+          columns = c(2,8)
+        )
+      ) %>% 
+      gtsave_extra(filename = glue("Images/table1_PEPFAR_SUPPORT_BY_OU2.png"))
     
     
 # SUMMARY #2: % Health center/posts out of total facilities in the country  byOU ----------------
@@ -187,12 +219,22 @@ library(gt)
                  health_post_share = "", 
                  mobile_share = "", 
                  total_sites = "Total number of facilities") %>% 
+      tab_row_group(
+        label = "Smaller TX OUs",
+        rows = Country %ni% c("Mozambique", "South Africa", "Zimbabwe",
+                              "Zambia", "Uganda", "Malawi")
+      ) %>%
+      tab_row_group(
+        label = "Larger TX OUs",
+        rows = Country %in% c("Mozambique", "South Africa", "Zimbabwe",
+                              "Zambia", "Uganda", "Malawi")
+      ) %>% 
       tab_header(
         title = glue("SHARE OF PRIMARY HEALTH CENTERS & HEALTH POSTS BY TOTAL FACILITIES WITHIN OU")
       ) %>% 
       gt_color_rows(columns = c(2,4,6), na.color = "white", 
                     palette = c("#f7f7f7", scooter_med)) %>% 
-      gtsave_extra(gt_fac_by_total_site, filename = glue("Images/TABLE_2_FAC_BY_TOTAL_SITE.png"))  
+      gtsave_extra(filename = glue("Images/TABLE_2_FAC_BY_TOTAL_SITE.png"))  
     
   # SUMMARY #3 -------------------------------------------------------------------
     
@@ -232,6 +274,16 @@ library(gt)
                  `Health Post` = "PEPFAR Supported Health Posts",
                  total_hp = "Total Health Posts" ,
                  total_phc = "Total Primary Health Centers") %>%
+      tab_row_group(
+        label = "Smaller TX OUs",
+        rows = Country %ni% c("Mozambique", "South Africa", "Zimbabwe",
+                              "Zambia", "Uganda", "Malawi")
+      ) %>%
+      tab_row_group(
+        label = "Larger TX OUs",
+        rows = Country %in% c("Mozambique", "South Africa", "Zimbabwe",
+                              "Zambia", "Uganda", "Malawi")
+      ) %>%
       tab_header(
         title = glue("SHARE OF PRIMARY HEALTH CENTERS AND HEALTH POSTS SUPPORTED BY PEPFAR")
       ) %>%
@@ -243,12 +295,18 @@ library(gt)
     
     #wrap into function later
     df_gt_viz4 <-   df_gt_all %>% 
+      mutate(indicator_type = case_when(DSD ==1 & TA ==1 ~ "DSD & TA",
+                                        DSD == 1 & is.na(TA) ~ "DSD",
+                                        TA == 1 & is.na(DSD) ~ "TA",
+                                        is.na(DSD) & is.na(TA) & merge_status_two == "PEPFAR" ~ "HSS Sites",
+                                        TRUE ~ "Not PEPFAR Supported")) %>% 
+      #distinct(regionorcountry_name, orgunit_internal_id, merge_status_two, indicator_type)
       # pivot_daa() %>% 
       filter(dataelement == "SA_FACILITY_TYPE") %>%
       #  mutate(fac_type = collapse_2())
       collapse_fac_type(., unique_var = value) %>%
-      distinct(regionorcountry_name, orgunit_internal_id, merge_status_two, fac_type) %>%
-      count(regionorcountry_name, merge_status_two, fac_type, sort = T) %>% 
+      distinct(regionorcountry_name, orgunit_internal_id, indicator_type, fac_type) %>%
+      count(regionorcountry_name, indicator_type, fac_type, sort = T) %>% 
       pivot_wider(names_from = "fac_type", values_from  = "n") %>%
       select(regionorcountry_name,merge_status_two,`Primary Health Center`, `Health Post`, `Mobile Health Clinic`) %>% 
       replace(is.na(.), 0) %>% 
