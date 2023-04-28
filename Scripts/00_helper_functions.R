@@ -308,7 +308,7 @@ get_ou_site_totals <- function(df) {
     mutate(indicator_type = case_when(DSD ==1 & TA ==1 ~ "DSD & TA",
                                       DSD == 1 & is.na(TA) ~ "DSD",
                                       TA == 1 & is.na(DSD) ~ "TA",
-                                      # is.na(DSD) & is.na(TA) & merge_status_two == "PEPFAR" ~ "No Support Type",
+                                      is.na(DSD) & is.na(TA) & merge_status_two == "PEPFAR" ~ "HSS Sites",
                                       TRUE ~ "Not PEPFAR Supported")) %>% 
     distinct(regionorcountry_name, orgunit_internal_id, merge_status_two, indicator_type) %>%
     count(regionorcountry_name, indicator_type, sort = T) %>% 
@@ -386,6 +386,7 @@ summary_tbl_ou_starter <- function(df, viz_type) {
       source_note = gt::md(glue("Source: DATIM DAA Site Attribute Data | Ref id: {ref_id}"))) %>% 
     tab_options(
       source_notes.font.size = px(10),
+      row_group.font.weight = "bold",
       column_labels.font.size = px(15)) %>% 
     # Highlighting max value within each column
     # gt_color_rows(columns = c(4,7), na.color = "white", 
