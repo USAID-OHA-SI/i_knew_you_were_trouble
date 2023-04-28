@@ -30,6 +30,9 @@
   # Sites pulled via API by AC
     ss_sites <- "1qX_qzyaS4eG9ivGAyoop5I2uPvzLOjwy"
     msd_path <- 
+    
+  # API CODE to get site counts      
+  #https://github.com/USAID-OHA-SI/groundhog_day/blob/5a0fffd5b0848048fe805ba4a3a96e8281170f09/Scripts/FY21Q4_pepfar-site-count.R#L253
   
   # Use google drive to download file and then pass temp path through to vroom to open
     temp <- tempfile(fileext = ".zip")
@@ -63,16 +66,16 @@
       filter(operatingunit %in% ou_list, sitetype == "Facility") %>% 
       mutate(value = 1) %>% 
       pivot_wider(names_from = indicatortype, values_from = value) %>% 
-      mutate(pepfar_fp = case_when(
-        is.na(DSD) & is.na(TA) ~ "Non-PEPFAR",
-        TRUE ~ "PEPFAR"
-      )) %>% 
-      arrange(pepfar_fp)
+      mutate(pepfar_fp = "PEPFAR") 
       
-    df_api %>% count(operatingunit, pepfar_fp) %>% spread(pepfar_fp, n) %>% 
-      mutate(total = `Non-PEPFAR` + PEPFAR) %>% 
-      arrange(desc(total))
-
+    df_api %>% count(operatingunit, pepfar_fp) %>% arrange(desc(n)) %>% janitor::adorn_totals()
+    
+    # What support types are covered under "No support type"
+    vroom::vroom(dl$local_path) %>% filter(indicatortype == "No Support Type") %>% 
+      pivot_longer(cols = where(is.logical)) %>% 
+      filter(!is.na(value), sitetype == "Facility") %>% 
+      count(name) %>% 
+      pull(name)
 # MUNGE ============================================================================
   
    df_phc <- df_daa %>% 
@@ -412,5 +415,54 @@
       alpha = 0.45
     ) %>% 
     gtsave(filename = glue("Images/daa_site_overall_summary.png"))
+  
+
+# MAKE WAFFLE SUMMARY -- MMMM Wafles.... ----------------------------------
+
+  library(waffle)
+  make_waffle <- function(n, clr = grey20k){
+    c(n) %>% 
+      as.table() %>% 
+      waffle::waffle(color = clr, flip = T) +
+      theme(legend.position = "none")
+  }
+  
+  # Get BANS
+  daa_ban <- df_daa %>% nrow() 
+  api_ban <- df_api %>% nrow()
+  daa_sa_ban <- df_daa_sa %>% nrow()
+  msd_ban <- df_msd %>% distinct(orgunituid) %>% nrow()
+  
+  # GET SHARES
+  api_prop <- api_ban / daa_ban
+  daa_sa_prop <- daa_sa_ban / daa_ban
+  msd_prop <- msd_ban / daa_ban
+  
+  
+  gen_tile_fill <- function(prop){
+    x <- round(prop, 2) * 100
+    y <- 100 - (round(prop, 2) * 100)
+    return(c(x, y))
+  }
+  
+gen_tile_fill(api_prop)
+  
+  96daa <- make_waffle(100) + labs(title = "DAA Sites") + 
+    annotate("text", x = 1, y = 9.5, label = label_number_si(accuracy = 0.1)(daa_ban), size = 20/.pt )
+  
+  api <- make_waffle(gen_tile_fill(api_prop), clr = c(scooter_med, grey20k)) + labs(title = "DATIM API Sites") +
+    annotate("text", x = 1, y = 3.5, label = label_number_si(accuracy = 0.1)(api_ban), size = 20/.pt )
+  
+  daa_sa <- make_waffle(gen_tile_fill(daa_sa_prop), clr = c("#D67288", grey20k)) +labs(title = "DAA Site Attributes") +
+    annotate("text", x = 1, y = 9.5, label = label_number_si(accuracy = 0.1)(daa_sa_ban), size = 20/.pt )
+  
+  msd <- make_waffle(gen_tile_fill(msd_prop), clr = c("#D6CE47", grey20k)) + labs(title = "Site-Level MSD") +
+    annotate("text", x = 1, y = 3.5, label = label_number_si(accuracy = 0.1)(msd_ban), size = 20/.pt )
+  
+  daa + daa_sa + api + msd + plot_layout(nrow = 1) 
+    si_save("Graphics/PHC_data_source_summary.svg")
+  
+  df_phc %>% count(merge_daa_api)
+    
     
   
