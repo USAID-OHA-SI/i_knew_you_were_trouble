@@ -49,7 +49,7 @@
     
     df_msd <- readRDS("Dataout/msd_site_dfs") %>% 
       filter(fiscal_year == 2023,
-             standardizeddisaggregate %in% c("Age/Sex/HIVStatus", "Modality/Age/Sex/Result")) %>%
+             standardizeddisaggregate %in% c("Age/Sex/HIVStatus", "Modality/Age/Sex/Result", "Age/Sex", "Age Aggregated/Sex/HIVStatus")) %>%
       mutate(age_bands = case_when(
         ageasentered %in% c("<01", "01-04", "05-09", "10-14") ~ "Pediatrics",
         ageasentered %in% c("15-19", "20-24") ~ "AYPs",
@@ -127,12 +127,16 @@
                    TX_CURR_Female = "Female",
                    TX_CURR_Male = "Male",
                    TX_NEW_Female = "Female", 
-                   TX_NEW_Male = "Male") %>% 
+                   TX_NEW_Male = "Male",
+                   PrEP_NEW_Female = "Female",
+                   PrEP_NEW_Male = "Male") %>% 
         tab_spanner(columns = 3:4,
-                    label = "HTS_TST_POS") %>% 
+                    label = "HTS_TST_POS") %>%
         tab_spanner(columns = 5:6,
-                    label = "TX_CURR") %>% 
+                    label = "PREP_NEW") %>% 
         tab_spanner(columns = 7:8,
+                    label = "TX_CURR") %>% 
+        tab_spanner(columns = 9:10,
                     label = "TX_NEW") %>% 
         gt_theme_phc() %>% 
         tab_options( # Adjusting padding between rows and font sizes
@@ -169,7 +173,7 @@
     }
 
   # Test age/sex summary table 
-  make_msd_tbl(df_msd_phc, ou = "South Africa")
+  make_msd_tbl(df_msd_phc, ou = "Mozambique")
     
   # Batch and save
   map(ou_list, ~make_msd_tbl(df_msd_phc, ou = .x) %>% 
@@ -213,7 +217,7 @@
         select(-operatingunit) %>% 
         rename(facility_type = fac_type) %>% 
         create_phc_gt(cntry = ou) %>% 
-        fmt_percent(columns = c(3, 5, 7), decimals = 0) %>% 
+        fmt_percent(columns = c(3, 5, 7, 9), decimals = 0) %>% 
         fmt_number(columns = 8, decimals = 0) %>% 
         sub_missing(missing_text = ".") %>% 
         cols_label(total_sites = "Total Sites Reporting") %>% 
@@ -238,11 +242,12 @@
             weight = 600
           ), 
           locations = cells_grand_summary()
-          )
+          ) %>% 
+        cols_label(PrEP_NEW_share= "")
     }
 
   # Pick an OU and test, then batch
-  make_mer_sh_tbl(ou_sh_tbl_full, "Uganda") 
+  make_mer_sh_tbl(ou_sh_tbl_full, "Zambia") 
   
   map(ou_list, ~make_mer_sh_tbl(ou_sh_tbl_full, .x) %>% 
         gtsave(filename = glue("Images/{.x}_msd_overall_summary.png")))
@@ -253,6 +258,86 @@
     count(value)
   
   
+
+# PIVOT INDICATORS WIDER --------------------------------------------------
+
+  
+  # Function to spread the data out wide, based on a single indicator
+  # Used as a first step to generate the summary MER tables by OU
+  spread_sh_tbl <- function(df, indic_name = "HTS_TST_POS"){
+   
+     df %>% 
+      select(operatingunit, fac_type, contains(indic_name)) %>% 
+      ungroup() %>% 
+      pivot_longer(cols = where(is.double),
+                   names_to = "indicator",
+                   values_to = "value") %>% 
+      arrange(fac_type) %>% 
+      pivot_wider(names_from = c(fac_type, indicator), 
+                  values_from = value) %>% 
+      rename_with(~str_remove_all(., str_c("_", indic_name, sep = ""))) %>% 
+      arrange(desc(`Primary Health Center`)) %>% 
+      mutate(
+        cntrygrp = case_when(
+          str_detect(operatingunit, "Moz|Malawi|Zimb|Zam|South Africa|Uga") ~ "Large TX OUs",
+          TRUE ~ "Small TX OUs"
+        ),
+        cntrygrp = fct_relevel(cntrygrp, c("Large TX OUs", "Small TX OUs"))
+      )
+    }
+  
+  # Function to create a wide table of faciliity types, passing in an indicator and
+  # base dataframe formed above
+  format_spread_sh_tbl <- function(df, indic = "HTS_TST_POS") {
+    
+    # Create the table for a specific indicator, add totals
+    df <-  spread_sh_tbl(df, indic_name = indic) %>% 
+      rowwise() %>% 
+      mutate(Total = sum(c_across(c(2, 4, 6, 8, 10, 12, 14)), na.rm = T))
+    
+    # Set the names, so we can use a list in cols_label below
+    new_names <-  names(df) %>% gsub(".*_", "", .) %>% set_names(., names(df))
+    
+    df %>% 
+      gt(rowname_col = "operatingunit", groupname_col = "cntrygrp") %>% 
+      fmt_number(columns = seq(2, 14, by = 2), decimals = 0) %>% 
+      fmt_number(columns = Total, decimals = 0) %>% 
+      fmt_percent(columns = seq(3, 15, by = 2), decimals = 0) %>% 
+      sub_missing(missing_text = ".") %>%
+      cols_label(.list = new_names)  %>% 
+      gt_theme_phc() %>% 
+      tab_header(
+        title = glue("{indic}: {metadata$curr_pd} MER SUMMARY BY FACILITY TYPE")
+      ) %>% 
+      tab_source_note(
+        source_note = gt::md(glue("Source: {metadata$source} & DATIM DAA Dataset | Ref id: {ref_id}"))) %>% 
+      tab_options(
+        source_notes.font.size = px(10)) %>% 
+    gt_highlight_cols(
+      columns = c(2, 4, last_col()),
+      fill = grey10k,
+      font_weight = 600,
+      alpha = 0.45
+    ) %>% 
+    tab_options( # Adjusting padding between rows and font sizes
+      table.font.size = px(12),
+      column_labels.font.size = px(14),
+      row_group.font.weight = "bold",
+      row_group.font.size = px(14),
+      data_row.padding = px(1), 
+      summary_row.padding = px(1.5),
+      grand_summary_row.padding = px(1.5),
+      row_group.padding = px(2),
+      heading.padding = px(1)
+    )
+  }
+  
+  # Batch indicator tables
+  indic_list <- c("PrEP_NEW", "HTS_TST_POS", "TX_CURR", "TX_NEW")
+  map(indic_list, ~format_spread_sh_tbl(ou_sh_tbl_full, indic = .x) %>% 
+        gtsave(filename = glue("Images/{.x}_msd_overall_summary.png")))
+
+
 
 # Summary Table of Site Attributes by OU ----------------------------------
 

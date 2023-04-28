@@ -149,7 +149,7 @@ create_phc_gt <- function(df, cntry = ""){
       )
     ) %>% 
     tab_header(
-      title = glue("{cntry}: MER SUMMARY BY FACILITY TYPE")
+      title = glue("{cntry}: {metadata$curr_pd} MER SUMMARY BY FACILITY TYPE")
     ) %>% 
     tab_source_note(
       source_note = gt::md(glue("Source: {metadata$source} & DATIM DAA Dataset | Ref id: {ref_id}"))) %>% 
