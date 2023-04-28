@@ -339,7 +339,7 @@ summary_tbl_ou_starter <- function(df, viz_type) {
   
   if (viz_type == "02_share_over_total") {
     pct_cols <- c(3,5,7)
-    num_cols <- c(2,4,6)
+    num_cols <- c(2,4,6,8)
     col_breaks <- c(2, 4, 6, 8)
     bold_col <- c(8)
   } else if (viz_type == "03_pepfar_share_hp_phc") {
