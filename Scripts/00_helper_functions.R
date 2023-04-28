@@ -347,6 +347,11 @@ summary_tbl_ou_starter <- function(df, viz_type) {
     num_cols <- c(2,3,5,6)
     col_breaks <- c(2, 5)
     bold_col <- c(2,6)
+  } else if (viz_type == "04_phc_hp_of_pepfar_sites") {
+    pct_cols <- c(3,5)
+    num_cols <- c(2,4,6)
+    col_breaks <- c(2, 4,6)
+    bold_col <- c(6)
   }
   
   df %>% 
@@ -377,6 +382,14 @@ summary_tbl_ou_starter <- function(df, viz_type) {
           columns = col_breaks
         )
       )
+    ) %>% 
+    grand_summary_rows(
+      columns = where(is.integer),
+      fns = list(
+        Overall = ~ sum(., na.rm = T)
+      ),
+      formatter = fmt_number,
+      decimals = 0
     ) %>% 
     gt_theme_nytimes() %>% 
     # tab_header(

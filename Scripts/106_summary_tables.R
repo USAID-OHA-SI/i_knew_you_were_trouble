@@ -145,6 +145,14 @@ library(gt)
       ) %>% 
       tab_options(
         source_notes.font.size = px(10)) %>% 
+      grand_summary_rows(
+        columns = where(is.integer),
+        fns = list(
+          Overall = ~ sum(., na.rm = T)
+        ),
+        formatter = fmt_number,
+        decimals = 0
+      ) %>% 
     #  gt_theme_nytimes() %>% 
       gt_theme_phc() %>% 
       tab_spanner(columns = 2:7,
@@ -173,7 +181,7 @@ library(gt)
           columns = c(2,8)
         )
       ) %>% 
-      gtsave_extra(filename = glue("Images/table1_PEPFAR_SUPPORT_BY_OU2.png"))
+      gtsave_extra(filename = glue("Images/table1_pepfar_support_ou.png"))
     
     
 # SUMMARY #2: % Health center/posts out of total facilities in the country  byOU ----------------
@@ -234,7 +242,7 @@ library(gt)
       ) %>% 
       gt_color_rows(columns = c(2,4,6), na.color = "white", 
                     palette = c("#f7f7f7", scooter_med)) %>% 
-      gtsave_extra(filename = glue("Images/TABLE_2_FAC_BY_TOTAL_SITE.png"))  
+      gtsave_extra(filename = glue("Images/table2_share_phc_by_total.png"))  
     
   # SUMMARY #3 -------------------------------------------------------------------
     
@@ -289,48 +297,56 @@ library(gt)
       ) %>%
       gt_color_rows(columns = c(4,7), na.color = "white",
                     palette = c("#f7f7f7", golden_sand)) %>% 
-      gtsave_extra(filename = glue("Images/TABLE_3_PEPFAR_PHC_HP.png"))  
+      gtsave_extra(filename = glue("Images/table3_share_pepfar_phc.png"))  
     
  # SUMMARY TABLE 4 ------------------------------------------------------------------
     
-    #wrap into function later
-    df_gt_viz4 <-   df_gt_all %>% 
-      mutate(indicator_type = case_when(DSD ==1 & TA ==1 ~ "DSD & TA",
-                                        DSD == 1 & is.na(TA) ~ "DSD",
-                                        TA == 1 & is.na(DSD) ~ "TA",
-                                        is.na(DSD) & is.na(TA) & merge_status_two == "PEPFAR" ~ "HSS Sites",
-                                        TRUE ~ "Not PEPFAR Supported")) %>% 
-      #distinct(regionorcountry_name, orgunit_internal_id, merge_status_two, indicator_type)
+    df_gt_viz4 <- df_gt_all %>% 
       # pivot_daa() %>% 
       filter(dataelement == "SA_FACILITY_TYPE") %>%
       #  mutate(fac_type = collapse_2())
       collapse_fac_type(., unique_var = value) %>%
-      distinct(regionorcountry_name, orgunit_internal_id, indicator_type, fac_type) %>%
-      count(regionorcountry_name, indicator_type, fac_type, sort = T) %>% 
+      distinct(regionorcountry_name, orgunit_internal_id, merge_status_two, fac_type) %>%
+      count(regionorcountry_name, merge_status_two, fac_type, sort = T) %>% 
       pivot_wider(names_from = "fac_type", values_from  = "n") %>%
-      select(regionorcountry_name,merge_status_two,`Primary Health Center`, `Health Post`, `Mobile Health Clinic`) %>% 
+      select(regionorcountry_name,merge_status_two,`Primary Health Center`, `Health Post`) %>% 
       replace(is.na(.), 0) %>% 
-      left_join(ou_totals_daa) %>% 
+      # group_by(regionorcountry_name) %>% 
+      # mutate(total_phc = sum(`Primary Health Center`),
+      #        total_hp = sum(`Health Post`),
+      #        phc_share = `Primary Health Center`/total_phc,
+      #        health_post_share = `Health Post`/total_hp) %>% 
+      # ungroup() %>% 
       filter(merge_status_two == "PEPFAR") %>% 
+      left_join(ou_totals_daa) %>% 
       mutate(phc_share = `Primary Health Center`/total_pepfar_sites,
-             health_post_share = `Health Post`/total_pepfar_sites,
-             mobile_share = `Mobile Health Clinic`/total_pepfar_sites) %>% 
-      select(regionorcountry_name, `Primary Health Center`, phc_share, `Health Post`, health_post_share, `Mobile Health Clinic`, mobile_share, total_pepfar_sites) %>% 
-      arrange(desc(phc_share)) %>% 
-      rename(Country = regionorcountry_name) 
-    
-    #VIZ
+             health_post_share = `Health Post`/total_pepfar_sites) %>% 
+      rename(Country = regionorcountry_name) %>% 
+      select(Country, `Primary Health Center`, phc_share, `Health Post`,health_post_share, total_pepfar_sites) %>% 
+      arrange(desc(phc_share))
+      
+  #VIZ 
     df_gt_viz4 %>%
    #   select(-c(total_sites)) %>% 
-      summary_tbl_ou_starter(viz_type = "02_share_over_total") %>% 
+      summary_tbl_ou_starter(viz_type = "04_phc_hp_of_pepfar_sites") %>% 
       cols_label(phc_share = "(share)",
                  health_post_share ="(share)", 
-                 mobile_share = "(share)", 
                  total_pepfar_sites = "Total PEPFAR-supported facilities") %>% 
+      tab_row_group(
+        label = "Smaller TX OUs",
+        rows = Country %ni% c("Mozambique", "South Africa", "Zimbabwe",
+                              "Zambia", "Uganda", "Malawi")
+      ) %>%
+      tab_row_group(
+        label = "Larger TX OUs",
+        rows = Country %in% c("Mozambique", "South Africa", "Zimbabwe",
+                              "Zambia", "Uganda", "Malawi")
+      ) %>%
       tab_header(
-        title = glue("SHARE OF PEPFAR-SUPPORTED PRIMARY HEALTH CENTERS & HEALTH POSTS BY TOTAL PEPFAR-SUPPORTED FACILITIES WITHIN OU")
+        title = glue("SHARE OF PEPFAR-SUPPORTED PHCS & HEALTH POSTS BY TOTAL PEPFAR-SUPPORTED FACILITIES WITHIN OU")
       ) %>% 
-      gt_color_rows(columns = c(2,4,6), na.color = "white", 
-                    palette = c("#f7f7f7", scooter_med))
+      gt_color_rows(columns = c(2,4), na.color = "white", 
+                    palette = c("#f7f7f7", scooter_med)) %>% 
+      gtsave_extra(filename = glue("Images/table4_share_phc_pepfar_sites.png"))  
     
   
