@@ -165,6 +165,7 @@ library(gt)
         source_note = gt::md(glue("Source: DATIM Data Alignment Activity Attribute Data & DATIM API 2023"))) %>%
       tab_options(
         source_notes.font.size = px(10),
+        data_row.padding = px(1), 
         row_group.font.weight = "bold",
         column_labels.font.size = px(15)) %>%
       gt_highlight_cols(
