@@ -23,7 +23,7 @@
     library(gt)
     
     
-  # SI specific paths/functions  
+  # SI specific paths/functions   
     load_secrets()
     source("Scripts/00_helper_functions.R")
   
@@ -44,7 +44,6 @@
     ref_id <- "cce714cf"
     
     
-  
 # LOAD DATA ============================================================================  
 
     df_daa_sa <- readRDS("Dataout/site_attrib_df") %>% 
