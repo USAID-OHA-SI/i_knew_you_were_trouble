@@ -42,6 +42,8 @@
       
   # REF ID for plots
     ref_id <- "cce714cf"
+    
+    
   
 # LOAD DATA ============================================================================  
 
@@ -76,6 +78,15 @@
       filter(!is.na(value), sitetype == "Facility") %>% 
       count(name) %>% 
       pull(name)
+    
+    # What indiactors are covered under TA or DSD?
+    vroom::vroom(dl$local_path)  %>% 
+      pivot_longer(cols = where(is.logical)) %>% 
+      filter(!is.na(value), sitetype == "Facility") %>% 
+      count(name) %>% 
+      pull(name) %>% 
+      writeLines
+    
 # MUNGE ============================================================================
   
    df_phc <- df_daa %>% 
@@ -420,10 +431,12 @@
 # MAKE WAFFLE SUMMARY -- MMMM Wafles.... ----------------------------------
 
   library(waffle)
+  library(extrafont)
   make_waffle <- function(n, clr = grey20k){
     c(n) %>% 
       as.table() %>% 
-      waffle::waffle(color = clr, flip = T) +
+      waffle::waffle(color = clr, flip = T,
+                     reverse = T, size = 0.5) +
       theme(legend.position = "none")
   }
   
@@ -446,18 +459,21 @@
   }
   
 gen_tile_fill(api_prop)
-  
+  x_pos = 3
+  y_pos = 9.5
+  fontfam = "Soure Sans Pro"
+
   daa <- make_waffle(100) + labs(title = "DAA Sites") + 
-    annotate("text", x = 1, y = 9.5, label = label_number_si(accuracy = 0.1)(daa_ban), size = 20/.pt )
+    annotate("text", x = x_pos, y = y_pos, label = label_number_si(accuracy = 0.1)(daa_ban), size = 26/.pt, family = fontfam, fontface = 2)
   
   api <- make_waffle(gen_tile_fill(api_prop), clr = c(scooter_med, grey20k)) + labs(title = "DATIM API Sites") +
-    annotate("text", x = 1, y = 3.5, label = label_number_si(accuracy = 0.1)(api_ban), size = 20/.pt )
+    annotate("text", x = x_pos, y = y_pos, label = label_number_si(accuracy = 0.1)(api_ban), size = 26/.pt, family = fontfam, fontface = 2)
   
-  daa_sa <- make_waffle(gen_tile_fill(daa_sa_prop), clr = c("#D67288", grey20k)) +labs(title = "DAA Site Attributes") +
-    annotate("text", x = 1, y = 9.5, label = label_number_si(accuracy = 0.1)(daa_sa_ban), size = 20/.pt )
+  daa_sa <- make_waffle(gen_tile_fill(daa_sa_prop), clr = c("#D67288", grey20k)) + labs(title = "DAA Site Attributes") +
+    annotate("text", x = x_pos, y = y_pos, label = label_number_si(accuracy = 0.1)(daa_sa_ban), size = 26/.pt, family = fontfam, fontface = 2 )
   
   msd <- make_waffle(gen_tile_fill(msd_prop), clr = c("#D6CE47", grey20k)) + labs(title = "Site-Level MSD") +
-    annotate("text", x = 1, y = 3.5, label = label_number_si(accuracy = 0.1)(msd_ban), size = 20/.pt )
+    annotate("text", x = x_pos, y = y_pos, label = label_number_si(accuracy = 0.1)(msd_ban), size = 26/.pt, family = fontfam, fontface = 2 )
   
   daa + daa_sa + api + msd + plot_layout(nrow = 1) 
     si_save("Graphics/PHC_data_source_summary.svg")
