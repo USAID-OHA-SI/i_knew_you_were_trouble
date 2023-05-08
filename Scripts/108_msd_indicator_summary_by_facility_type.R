@@ -51,6 +51,8 @@
     
     df_daa <- readRDS("Dataout/daa_fac_df") 
     
+    df_hrh <- readRDS("Dataout/df_hrh_fac_phc") 
+    
     df_msd <- readRDS("Dataout/msd_site_dfs") %>% 
       filter(fiscal_year == 2023,
              standardizeddisaggregate %in% c("Age/Sex/HIVStatus", "Modality/Age/Sex/Result", "Age/Sex", "Age Aggregated/Sex/HIVStatus")) %>%
@@ -440,6 +442,18 @@
   
 
 # MAKE WAFFLE SUMMARY -- MMMM Wafles.... ----------------------------------
+  
+  #munge HRH
+  df_hrh %>% 
+    filter(operatingunit %in% ou_list) %>%
+    distinct
+    
+    
+   #janitor::get_dupes() %>% 
+    #nrow() %>% 
+    count(any_hrh, merge_daa_sa)
+    
+  
 
   library(waffle)
   library(extrafont)
@@ -456,11 +470,17 @@
   api_ban <- df_api %>% nrow()
   daa_sa_ban <- df_daa_sa %>% nrow()
   msd_ban <- df_msd %>% distinct(orgunituid) %>% nrow()
+  hrh_ban <- df_hrh %>% filter(operatingunit %in% ou_list) %>% count(any_hrh) %>% pull(n)
+  hrh_sa_ban <- df_hrh %>% filter(operatingunit %in% ou_list) %>% count(any_hrh,merge_daa_sa) %>% 
+                filter(merge_daa_sa == "DAA & SA") %>% pull(n)
+  
   
   # GET SHARES
   api_prop <- api_ban / daa_ban
   daa_sa_prop <- daa_sa_ban / daa_ban
   msd_prop <- msd_ban / daa_ban
+  hrh_prop <- hrh_ban / daa_ban
+  hrh_sa_prop <- hrh_sa_ban / daa_ban
   
   
   gen_tile_fill <- function(prop){
@@ -486,10 +506,17 @@ gen_tile_fill(api_prop)
   msd <- make_waffle(gen_tile_fill(msd_prop), clr = c("#D6CE47", grey20k)) + labs(title = "Site-Level MSD") +
     annotate("text", x = x_pos, y = y_pos, label = label_number_si(accuracy = 0.1)(msd_ban), size = 26/.pt, family = fontfam, fontface = 2 )
   
+  hrh <- make_waffle(gen_tile_fill(hrh_prop), clr = c("#5B82BD", grey20k)) + labs(title = "HRH Inventory Sites") +
+    annotate("text", x = x_pos, y = y_pos, label = label_number_si(accuracy = 0.1)(hrh_ban), size = 26/.pt, family = fontfam, fontface = 2 )
+  
+  hrh_sa <- make_waffle(gen_tile_fill(hrh_sa_prop), clr = c("#877EC9", grey20k)) + labs(title = "HRH Inventory Sites with Attribute Information") +
+    annotate("text", x = x_pos, y = y_pos, label = label_number_si(accuracy = 0.1)(hrh_sa_ban), size = 26/.pt, family = fontfam, fontface = 2 )
+  
   daa + daa_sa + api + msd + plot_layout(nrow = 1) 
     si_save("Graphics/PHC_data_source_summary.svg")
   
   df_phc %>% count(merge_daa_api)
     
-    
+  daa + daa_sa + hrh + hrh_sa + plot_layout(nrow = 1) 
+  si_save("Graphics/hrh_data_source_summary.svg")
   
