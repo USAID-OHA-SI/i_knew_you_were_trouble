@@ -181,6 +181,13 @@ library(gt)
         locations = cells_body(
           columns = c(2,8)
         )
+      ) %>% # Red box alternative below
+      tab_style(
+        style = list(
+          cell_fill(color = old_rose, alpha = 0.15),
+          "font-variant: small-caps;"
+        ),
+        locations = cells_body(columns = `PEPFAR Share`)
       ) %>% 
       gtsave_extra(filename = glue("Images/table1_pepfar_support_ou.png"))
     
