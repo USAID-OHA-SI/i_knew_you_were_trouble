@@ -324,14 +324,14 @@
       ) %>% 
       tab_source_note(
         source_note = gt::md(glue("Source: {metadata$source} & DATIM DAA Dataset | Ref id: {ref_id}"))) %>% 
-      tab_options(
-        source_notes.font.size = px(10)) %>% 
-    gt_highlight_cols(
-      columns = c(2, 4, last_col()),
-      fill = grey10k,
-      font_weight = 600,
-      alpha = 0.45
-    ) %>% 
+    #   tab_options(
+    #     source_notes.font.size = px(10)) %>% 
+    # gt_highlight_cols(
+    #   columns = c(2, 4, last_col()),
+    #   fill = grey10k,
+    #   font_weight = 600,
+    #   alpha = 0.45
+    # ) %>% 
     tab_options( # Adjusting padding between rows and font sizes
       table.font.size = px(12),
       column_labels.font.size = px(14),
@@ -342,7 +342,17 @@
       grand_summary_row.padding = px(1.5),
       row_group.padding = px(2),
       heading.padding = px(1)
-    )
+    ) %>% 
+      tab_style(
+        style = list(
+          cell_fill(color = old_rose, alpha = 0.15), 
+          cell_text(weight = 700)
+        ),
+        locations = cells_body(
+          rows = `Primary Health Center_share` > 0.5,
+          columns = c(1, 2, 3, 4, 5)
+        )
+      ) 
   }
   
   # Batch indicator tables
@@ -423,7 +433,9 @@
       fill = grey10k,
       font_weight = 600,
       alpha = 0.45
-    ) %>% 
+    ) 
+  
+  %>% 
     gtsave(filename = glue("Images/daa_site_overall_summary.png"))
   
 
