@@ -24,7 +24,7 @@
     dir.create(dir_msds)
     
   # Global objects
-    indic_list <- c("PrEP_NEW", "HTS_TST_POS", "TX_CURR", "TX_NEW")
+    indic_list <- c("PrEP_NEW", "HTS_TST_POS", "TX_CURR", "TX_NEW", "TX_PVLS")
 
 # ESTABLISH SESSION ============================================================================  
 

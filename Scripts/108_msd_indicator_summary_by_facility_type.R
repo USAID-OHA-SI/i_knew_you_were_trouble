@@ -29,7 +29,7 @@
   
   # Sites pulled via API by AC
     ss_sites <- "1qX_qzyaS4eG9ivGAyoop5I2uPvzLOjwy"
-    msd_path <- 
+    #msd_path <- 
     
   # API CODE to get site counts      
   #https://github.com/USAID-OHA-SI/groundhog_day/blob/5a0fffd5b0848048fe805ba4a3a96e8281170f09/Scripts/FY21Q4_pepfar-site-count.R#L253
@@ -55,13 +55,20 @@
     
     df_msd <- readRDS("Dataout/msd_site_dfs") %>% 
       filter(fiscal_year == 2023,
-             standardizeddisaggregate %in% c("Age/Sex/HIVStatus", "Modality/Age/Sex/Result", "Age/Sex", "Age Aggregated/Sex/HIVStatus")) %>%
+             standardizeddisaggregate %in% c("Age/Sex/HIVStatus", "Modality/Age/Sex/Result", 
+                                             "Age/Sex", "Age Aggregated/Sex/HIVStatus",
+                                             "Age/Sex/Indication/HIVStatus")) %>%
+      clean_indicator() %>% 
       mutate(age_bands = case_when(
         ageasentered %in% c("<01", "01-04", "05-09", "10-14") ~ "Pediatrics",
         ageasentered %in% c("15-19", "20-24") ~ "AYPs",
         TRUE ~ "Adults"
       )) %>%
       summarise(indic_value = sum(cumulative, na.rm = T), .by = c(operatingunit, orgunituid, age_bands, sex, indicator, facility))
+    
+    df_msd_vl <- df_msd %>% 
+      filter(str_detect(indicator, "TX_PVLS")) %>% 
+      pivot_wider(names_from = indicator, values_from = indic_value)
     
     # API info on whether or not a site has TA / DSD
     df_api <- vroom::vroom(dl$local_path) %>% 
@@ -119,6 +126,9 @@
         select(-sex) %>% 
         spread(indicator, indic_value) %>% 
         arrange(age_bands, fac_type) %>% 
+        mutate(VLS_Female = TX_PVLS_Female / TX_PVLS_D_Female,
+               VLS_Male = TX_PVLS_Male / TX_PVLS_D_Male) %>% 
+        select(-contains("PVLS")) %>% 
         gt(groupname_col = "age_bands") %>% 
         summary_rows(groups = c("Pediatrics", "AYPs", "Adults"),
                      columns = 2:8,
@@ -127,15 +137,17 @@
                      formatter = fmt_number,
                      decimals = 0
         ) %>% 
-        grand_summary_rows(columns = is.numeric,
-                                fns = list(
-                                  overall = ~sum(., na.rm = T)), 
-                                formatter = fmt_number,
-                                decimals = 0
+        grand_summary_rows(columns = 2:10,
+                           fns = list(
+                             overall = ~sum(., na.rm = T)), 
+                           formatter = fmt_number,
+                           decimals = 0
         ) %>% 
         sub_missing(missing_text = ".") %>% 
-        fmt_number(columns = is.numeric,
+        fmt_number(columns = 3:10,
                    decimals = 0) %>% 
+        fmt_percent(columns = 11:12, 
+                    decimals = 0) %>% 
         cols_label(fac_type = "", 
                    HTS_TST_POS_Female = "Female",
                    HTS_TST_POS_Male = "Male",
@@ -144,7 +156,9 @@
                    TX_NEW_Female = "Female", 
                    TX_NEW_Male = "Male",
                    PrEP_NEW_Female = "Female",
-                   PrEP_NEW_Male = "Male") %>% 
+                   PrEP_NEW_Male = "Male",
+                   VLS_Female = "Female",
+                   VLS_Male = "Male") %>% 
         tab_spanner(columns = 3:4,
                     label = "HTS_TST_POS") %>%
         tab_spanner(columns = 5:6,
@@ -153,6 +167,8 @@
                     label = "TX_CURR") %>% 
         tab_spanner(columns = 9:10,
                     label = "TX_NEW") %>% 
+        tab_spanner(columns = 11:12,
+                    label = "VLS") %>% 
         gt_theme_phc() %>% 
         tab_options( # Adjusting padding between rows and font sizes
           table.font.size = px(12),
@@ -180,15 +196,15 @@
         locations = cells_grand_summary()
         ) %>% 
         tab_style(style = cell_text(
-        font = google_font("Source Sans Pro"),
-        weight = 400
-          ),
+          font = google_font("Source Sans Pro"),
+          weight = 400
+        ),
         locations = cells_summary()
         )
     }
-
+    
   # Test age/sex summary table 
-  make_msd_tbl(df_msd_phc, ou = "Mozambique")
+  make_msd_tbl(df_msd_phc, ou = "Zambia")
     
   # Batch and save
   map(ou_list, ~make_msd_tbl(df_msd_phc, ou = .x) %>% 
@@ -215,52 +231,56 @@
       group_by(operatingunit) %>% 
       mutate(across(c(where(is.double)), ~(.x / sum(.x, na.rm = T)), .names = "{.col}_share")) %>% 
       select(operatingunit, fac_type, order(colnames(.))) %>% 
-    left_join(., ou_mer_site_count) 
+    left_join(., ou_mer_site_count) %>% 
+      mutate(VLS = TX_PVLS/TX_PVLS_D, .after = TX_NEW_share) %>% 
+      mutate(VLS_share = TX_PVLS_share, .after = VLS) %>% 
+      select(-contains("PVLS")) 
 
 
   # Create a function to make summary rollup of MER indicators by OU
   # This will be batched over and should fit into the existing
   # `create_phc_gt()` function
   
-    make_mer_sh_tbl <- function(df, ou){
+  make_mer_sh_tbl <- function(df, ou){
     
-      cntry <- str_to_upper(ou)
-      
-      df %>% 
-        filter(operatingunit == ou) %>%  
-        ungroup() %>% 
-        select(-operatingunit) %>% 
-        rename(facility_type = fac_type) %>% 
-        create_phc_gt(cntry = ou) %>% 
-        fmt_percent(columns = c(3, 5, 7, 9), decimals = 0) %>% 
-        fmt_number(columns = 8, decimals = 0) %>% 
-        sub_missing(missing_text = ".") %>% 
-        cols_label(total_sites = "Total Sites Reporting") %>% 
-        gt_highlight_rows(
-          rows = facility_type %in% c("Health Post", "Primary Health Center"),
-          fill = grey10k,
-          font_weight = 600,
-          alpha = 0.45
-        ) %>% 
-        tab_options(
-          column_labels.font.size = px(15)
-        ) %>% 
-        grand_summary_rows(
-          columns = c(2, 4, 6, 8),
-            fns = list(
-              Overall = ~sum(., na.rm = T)), 
-            formatter = fmt_number,
-            decimals = 0
-          ) %>% 
-        tab_style(style = cell_text(
-            font = google_font("Source Sans Pro"),
-            weight = 600
-          ), 
-          locations = cells_grand_summary()
-          ) %>% 
-        cols_label(PrEP_NEW_share= "")
-    }
-
+    cntry <- str_to_upper(ou)
+    
+    df %>% 
+      filter(operatingunit == ou) %>%  
+      ungroup() %>% 
+      select(-operatingunit) %>% 
+      rename(facility_type = fac_type) %>% 
+      create_phc_gt(cntry = ou) %>% 
+      fmt_percent(columns = c(3, 5, 7, 9, 10, 11), decimals = 0) %>% 
+      fmt_number(columns = 8, decimals = 0) %>% 
+      sub_missing(missing_text = ".") %>% 
+      cols_label(total_sites = "Total Sites Reporting") %>% 
+      gt_highlight_rows(
+        rows = facility_type %in% c("Health Post", "Primary Health Center"),
+        fill = grey10k,
+        font_weight = 600,
+        alpha = 0.45
+      ) %>% 
+      tab_options(
+        column_labels.font.size = px(15)
+      ) %>% 
+      grand_summary_rows(
+        columns = c(2, 4, 6, 8, 12),
+        fns = list(
+          Overall = ~sum(., na.rm = T)), 
+        formatter = fmt_number,
+        decimals = 0
+      ) %>% 
+      tab_style(style = cell_text(
+        font = google_font("Source Sans Pro"),
+        weight = 600
+      ), 
+      locations = cells_grand_summary()
+      ) %>% 
+      cols_label(PrEP_NEW_share = "",
+                 VLS_share = "")
+  }
+  
   # Pick an OU and test, then batch
   make_mer_sh_tbl(ou_sh_tbl_full, "Zambia") 
   
@@ -362,7 +382,55 @@
   map(indic_list, ~format_spread_sh_tbl(ou_sh_tbl_full, indic = .x) %>% 
         gtsave(filename = glue("Images/{.x}_msd_overall_summary.png")))
 
-
+  # VLS Summary table
+  format_spread_sh_tbl_vls <- function(df, indic = "VLS") {
+    
+    # Create the table for a specific indicator, add totals
+    df <-  spread_sh_tbl(df, indic_name = indic) %>% 
+      arrange(cntrygrp)
+    
+    # Set the names, so we can use a list in cols_label below
+    new_names <-  names(df) %>% gsub(".*_", "", .) %>% set_names(., names(df))
+    
+    df %>% 
+      gt(rowname_col = "operatingunit", groupname_col = "cntrygrp") %>% 
+      # fmt_number(columns = seq(2, 14, by = 2), decimals = 0) %>% 
+      # fmt_number(columns = Total, decimals = 0) %>% 
+      fmt_percent(columns = seq(1, 15, by = 1), decimals = 0) %>% 
+      sub_missing(missing_text = ".") %>%
+      cols_label(.list = new_names)  %>% 
+      gt_theme_phc() %>% 
+      tab_header(
+        title = glue("{indic}: {metadata$curr_pd} MER SUMMARY BY FACILITY TYPE")
+      ) %>% 
+      tab_source_note(
+        source_note = gt::md(glue("Source: {metadata$source} & DATIM DAA Dataset | Ref id: {ref_id}"))) %>% 
+      tab_options( # Adjusting padding between rows and font sizes
+        table.font.size = px(12),
+        column_labels.font.size = px(14),
+        row_group.font.weight = "bold",
+        row_group.font.size = px(14),
+        data_row.padding = px(1), 
+        summary_row.padding = px(1.5),
+        grand_summary_row.padding = px(1.5),
+        row_group.padding = px(2),
+        heading.padding = px(1)
+      ) %>% 
+      tab_style(
+        style = list(
+          cell_fill(color = old_rose, alpha = 0.15), 
+          cell_text(weight = 700)
+        ),
+        locations = cells_body(
+          rows = `Primary Health Center_share` >= 0.5,
+          columns = c(1, 2, 3, 4, 5)
+        )
+      ) 
+  }
+  
+  format_spread_sh_tbl_vls(ou_sh_tbl_full, indic = "VLS") %>% 
+    gtsave(filename = glue("Images/VLS_msd_overall_summary.png"))
+  
 
 # Summary Table of Site Attributes by OU ----------------------------------
 
