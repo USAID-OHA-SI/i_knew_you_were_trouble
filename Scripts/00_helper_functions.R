@@ -471,3 +471,49 @@ gt_theme_phc <- function (gt_object, ...)
     ) 
 }
 
+hrh_table_starter <- function(df) {
+  
+  
+  df %>% 
+    gt() %>% 
+    sub_missing(missing_text = ".",
+    ) %>% 
+    fmt_percent(columns = c(3,5,7,9, 11),
+                decimals = 0) %>%
+    fmt_currency(columns = c(2,4,6,8,10, 12),
+                 decimal = 0,
+                 suffixing = TRUE) %>%
+    cols_align(align = "left", columns = 1) %>% 
+    tab_style(
+      style = list(
+        cell_borders(
+          sides = c("left"), 
+          color = trolley_grey_light,
+          weight = px(2)
+        )
+      ),
+      locations = list(
+        cells_body(
+          columns = c(2,4,6,8,10, 12)
+        )
+      )
+    ) %>% 
+    gt_theme_nytimes() %>% 
+    tab_source_note(
+      source_note = gt::md(glue("Source: DATIM DAA Site Attribute Data | Ref id: {ref_id}"))) %>% 
+    tab_options(
+      source_notes.font.size = px(10),
+      row_group.font.weight = "bold",
+      data_row.padding = px(1),
+      column_labels.font.size = px(15)) %>% 
+    tab_style(
+      style = list(
+        cell_text(weight = 600)
+      ),
+      locations = cells_body(
+        columns = 12
+      )
+    )
+  
+}
+
