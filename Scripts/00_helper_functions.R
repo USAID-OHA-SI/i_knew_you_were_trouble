@@ -517,3 +517,16 @@ hrh_table_starter <- function(df) {
   
 }
 
+
+
+# Darken columns
+drkn_clmn_hdr <- function(.data){
+  .data %>%  
+    tab_style(
+    style = list(
+      cell_text(color = grey90k)
+    ),
+    locations = cells_column_labels(
+    )
+  )
+}

@@ -305,6 +305,7 @@ library(gt)
       ) %>%
       gt_color_rows(columns = c(4,7), na.color = "white",
                     palette = c("#f7f7f7", golden_sand)) %>% 
+      drkn_clmn_hdr() %>% 
       gtsave_extra(filename = glue("Images/table3_share_pepfar_phc.png"))  
     
  # SUMMARY TABLE 4 ------------------------------------------------------------------
@@ -355,6 +356,7 @@ library(gt)
       ) %>% 
       gt_color_rows(columns = c(2,4), na.color = "white", 
                     palette = c("#f7f7f7", scooter_med)) %>% 
+      drkn_clmn_hdr() %>% 
       gtsave_extra(filename = glue("Images/table4_share_phc_pepfar_sites.png"))  
     
   
