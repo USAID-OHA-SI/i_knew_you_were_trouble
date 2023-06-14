@@ -318,8 +318,8 @@ library(gt)
       distinct(regionorcountry_name, orgunit_internal_id, merge_status_two, fac_type) %>%
       count(regionorcountry_name, merge_status_two, fac_type, sort = T) %>% 
       pivot_wider(names_from = "fac_type", values_from  = "n") %>%
-      select(regionorcountry_name,merge_status_two,`Primary Health Center`, `Health Post`) %>% 
-      replace(is.na(.), 0) %>% 
+      # select(regionorcountry_name,merge_status_two,`Primary Health Center`, `Health Post`) %>% 
+      # replace(is.na(.), 0) %>% 
       # group_by(regionorcountry_name) %>% 
       # mutate(total_phc = sum(`Primary Health Center`),
       #        total_hp = sum(`Health Post`),
@@ -328,10 +328,15 @@ library(gt)
       # ungroup() %>% 
       filter(merge_status_two == "PEPFAR") %>% 
       left_join(ou_totals_daa) %>% 
-      mutate(phc_share = `Primary Health Center`/total_pepfar_sites,
-             health_post_share = `Health Post`/total_pepfar_sites) %>% 
+      mutate(phc_share = `Primary Health Center`/ total_pepfar_sites,
+             health_post_share = `Health Post`/ total_pepfar_sites,
+             other_share = `Other Facility` / total_pepfar_sites,
+             mobile_share = `Mobile Health Clinic` / total_pepfar_sites,
+             hospital_share = Hospital / total_pepfar_sites) %>% 
       rename(Country = regionorcountry_name) %>% 
-      select(Country, `Primary Health Center`, phc_share, `Health Post`,health_post_share, total_pepfar_sites) %>% 
+      select(Country, `Primary Health Center`, phc_share, `Health Post`, health_post_share, 
+             `Mobile Health Clinic`, mobile_share, Hospital, hospital_share, `Other Facility`, 
+             other_share, total_pepfar_sites) %>% 
       arrange(desc(phc_share))
       
   #VIZ 

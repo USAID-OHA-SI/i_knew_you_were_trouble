@@ -19,6 +19,8 @@
   library(glue)
   library(readxl)
   library(googlesheets4)
+  library(gtExtras)
+  library(gt)
   
 
 # GLOBAL VARIABLES --------------------------------------------------------
@@ -92,7 +94,8 @@ total_spend <-  df_hrh %>%
      title = glue("ANNUAL SPENDING ON HRH STAFFING (SALARIES AND FRINGE) BY OU AND FACILITY TYPE, 2022")
    ) %>% 
    gt_color_rows(columns = c(2,4,6), na.color = "white", 
-                 palette = c("#f7f7f7", moody_blue)) %>% 
+                 palette = c("#f7f7f7", moody_blue)) %>%
+   drkn_clmn_hdr() %>% 
    gtsave_extra(filename = glue("Images/table_hrh_spending.png"))  
  
  

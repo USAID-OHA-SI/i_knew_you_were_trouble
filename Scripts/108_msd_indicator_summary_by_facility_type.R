@@ -87,7 +87,7 @@
       count(name) %>% 
       pull(name)
     
-    # What indiactors are covered under TA or DSD?
+    # What indicators are covered under TA or DSD?
     vroom::vroom(dl$local_path)  %>% 
       pivot_longer(cols = where(is.logical)) %>% 
       filter(!is.na(value), sitetype == "Facility") %>% 
@@ -374,8 +374,10 @@
           rows = `Primary Health Center_share` > 0.5,
           columns = c(1, 2, 3, 4, 5)
         )
-      ) 
+      ) %>% 
+      drkn_clmn_hdr()
   }
+  
   
   # Batch indicator tables
   indic_list <- c("PrEP_NEW", "HTS_TST_POS", "TX_CURR", "TX_NEW")
