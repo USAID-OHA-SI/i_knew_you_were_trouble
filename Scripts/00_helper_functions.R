@@ -352,6 +352,11 @@ summary_tbl_ou_starter <- function(df, viz_type) {
     num_cols <- c(2,4,6)
     col_breaks <- c(2, 4,6)
     bold_col <- c(6)
+  } else if (viz_type == "04_phc_hp_of_pepfar_sites_all_type") {
+    pct_cols <- c(3,5,7,9,11)
+    num_cols <- c(2,4,6,8,10)
+    col_breaks <- c(2, 4,6,8,10,12)
+    bold_col <- c(12)
   }
   
   df %>% 
