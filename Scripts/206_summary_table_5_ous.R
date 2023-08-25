@@ -112,6 +112,23 @@ api_tagged <- datim_sites_api %>%
   arrange(pepfar_fp) %>% 
   rename(sitename = facilityname) 
 
+
+datim_sites_api %>% 
+  select(1:6) %>% 
+  filter(sitetype == "Facility") %>% 
+  mutate(value = case_when(
+    indicatortype != "No Support Type" ~ 1,
+    TRUE ~ NA_integer_
+  )) %>% 
+  pivot_wider(names_from = indicatortype, values_from = value) %>% 
+  mutate(pepfar_fp = case_when(
+    is.na(DSD) & is.na(TA) ~ "Non-PEPFAR",
+    TRUE ~ "PEPFAR"
+  )) %>% 
+  arrange(pepfar_fp) %>% 
+  rename(sitename = facilityname) %>% 
+  filter(operatingunit == "Cote d'Ivoire")
+
 #join DATIM API data to DAA and site attributes (verify that this is the correct way to join)
 df_gt_all <- df_daa %>% 
   tidylog::left_join(df_daa_sa, by = c("orgunit_internal_id" = "DATIM UID")) %>% 
@@ -124,10 +141,11 @@ df_gt_all <- df_daa %>%
 
 # SUMMARY TABLES BY OU -----------------------------------------------------------------------------
 
+# ask now is to add one summary viz across OUs and priority districts - need to amend above functions
 ou_totals_daa <- get_ou_site_totals(df_gt_all)
 
 
-create_joined_tbl <- function(ou) {
+create_joined_tbl <- function(ou, return_type) {
   
   #OU level summary
   df_gt_ou_tbl <- df_gt_all %>% 
@@ -147,18 +165,18 @@ create_joined_tbl <- function(ou) {
   }
   
   df_gt_ou_tbl <- df_gt_ou_tbl %>%
-    mutate(`Mobile Health Clinic` = NA) %>% 
+    #mutate(`Mobile Health Clinic` = NA) %>% 
     filter(merge_status_two == "PEPFAR") %>% 
     left_join(ou_totals_daa) %>% 
     mutate(phc_share = `Primary Health Center`/ total_pepfar_sites,
            health_post_share = `Health Post`/ total_pepfar_sites,
            other_share = `Other Facility` / total_pepfar_sites,
-           mobile_share = `Mobile Health Clinic` / total_pepfar_sites,
+           #mobile_share = `Mobile Health Clinic` / total_pepfar_sites,
            hospital_share = Hospital / total_pepfar_sites) %>% 
     rename(Geography = regionorcountry_name) %>% 
     #mutate(District = NA) %>% 
-    select(Geography, `Primary Health Center`, phc_share, `Health Post`, health_post_share, 
-           `Mobile Health Clinic`, mobile_share, Hospital, hospital_share, `Other Facility`, 
+    select(Geography, `Primary Health Center`, phc_share, `Health Post`, health_post_share,
+           Hospital, hospital_share, `Other Facility`, 
            other_share, total_pepfar_sites) %>% 
     arrange(desc(phc_share))
   
@@ -200,33 +218,45 @@ create_joined_tbl <- function(ou) {
   }  
   
   df_gt_district_tbl <- df_gt_district_tbl %>% 
-    mutate(`Mobile Health Clinic` = NA) %>% 
+    # mutate(`Mobile Health Clinic` = NA) %>% 
     filter(merge_status_two == "PEPFAR") %>% 
     left_join(df_totals_district) %>% 
     mutate(phc_share = `Primary Health Center`/ total_pepfar_sites,
            health_post_share = `Health Post`/ total_pepfar_sites,
            other_share = `Other Facility` / total_pepfar_sites,
-           mobile_share = `Mobile Health Clinic` / total_pepfar_sites,
+           # mobile_share = `Mobile Health Clinic` / total_pepfar_sites,
            hospital_share = Hospital / total_pepfar_sites) %>% 
     rename(Geography = district) %>% 
-    select(Geography, `Primary Health Center`, phc_share, `Health Post`, health_post_share, 
-           `Mobile Health Clinic`, mobile_share, Hospital, hospital_share, `Other Facility`, 
+    select(Geography, `Primary Health Center`, phc_share, `Health Post`, health_post_share,
+           Hospital, hospital_share, `Other Facility`, 
            other_share, total_pepfar_sites) %>% 
-    arrange(desc(phc_share))
+    arrange(desc(phc_share)) %>% 
+    mutate(Country = ou) %>% 
+    relocate(Country, .before = Geography)
   
-  joined_tbl <- df_gt_ou_tbl %>% 
-    rbind(df_gt_district_tbl)
+  if(return_type == "OU") {
+    return(df_gt_ou_tbl)
+  } else if (return_type == "District") {
+    return(df_gt_district_tbl)
+  }
   
-  return(joined_tbl)
 }
 
 
-ou_tbl_starter <- function(df) {
-
-    pct_cols <- c(3,5,7,9,11)
-    num_cols <- c(2,4,6,8,10)
-    col_breaks <- c(2, 4,6,8,10,12)
-    bold_col <- c(12)
+ou_tbl_starter <- function(df, return_type) {
+  
+  if(return_type == "District") {
+    pct_cols <- c(4,6,8,10)
+    num_cols <- c(3,5,7,9)
+    col_breaks <- c(3,5,7,9,11)
+    bold_col <- c(11)
+  } else {
+    pct_cols <- c(3,5,7,9)
+    num_cols <- c(2,4,6,8)
+    col_breaks <- c(2, 4,6,8,10)
+    bold_col <- c(10)
+  }
+  
   
   df %>% 
     gt() %>% 
@@ -236,12 +266,6 @@ ou_tbl_starter <- function(df) {
                 decimals = 0) %>%
     fmt_number(columns = num_cols,
                decimal = 0) %>%
-    # cols_label(phc_share = "(share)",
-    #            health_post_share = "(share)", 
-    #            `Primary Health Center` = "PEPFAR Supported Primary Health Centers",
-    #            `Health Post` = "PEPFAR Supported Health Posts",
-    #            total_hp = "Total Health Posts" ,
-    #            total_phc = "Total Primary Health Centers") %>% 
     cols_align(align = "left", columns = 1) %>% 
     tab_style(
       style = list(
@@ -257,18 +281,7 @@ ou_tbl_starter <- function(df) {
         )
       )
     ) %>% 
-    # grand_summary_rows(
-    #   columns = where(is.integer),
-    #   fns = list(
-    #     Overall = ~ sum(., na.rm = T)
-    #   ),
-    #   formatter = fmt_number,
-    #   decimals = 0
-    # ) %>% 
     gt_theme_nytimes() %>% 
-    # tab_header(
-    #   title = glue("SHARE OF PRIMARY HEALTH CENTERS AND HEALTH POSTS SUPPORTED BY PEPFAR")
-    # ) %>% 
     tab_source_note(
       source_note = gt::md(glue("Source: DATIM DAA Site Attribute Data | Ref id: {ref_id}"))) %>% 
     tab_options(
@@ -290,36 +303,21 @@ ou_tbl_starter <- function(df) {
   
 }
 
-primary_impact_viz_tbl <- function(df, ou) {
+primary_impact_viz_tbl <- function(df, return_type) {
   
-  if (ou == "Malawi") {
-    phc_low_bnd <- 0.6
-    phc_up_bnd <- 0.75
-    hp_low_bnd <- 0
-    hp_up_bnd <- 0.75
-  } else if (ou == "Nigeria") {
-    phc_low_bnd <- 0.25
-    phc_up_bnd <- 0.60
-    hp_low_bnd <- 0
-    hp_up_bnd <- 0.60
-  } else if (ou == "Cote d'Ivoire") {
-    phc_low_bnd <- 0.65
-    phc_up_bnd <- 0.73
-    hp_low_bnd <- 0
-    hp_up_bnd <- 0.75
-  } else if (ou == "Kenya") {
-    phc_low_bnd <- 0.1
-    phc_up_bnd <- 0.4
-    hp_low_bnd <- 0
-    hp_up_bnd <- 0.75
+  if(return_type == "District") {
+    fill_col_1 <- c(4)
+    fill_col_2 <- c(6)
+  } else {
+    fill_col_1 <- c(3)
+    fill_col_2 <- c(5)
   }
   
-  
   df %>% 
-    ou_tbl_starter() %>% 
+    ou_tbl_starter(return_type) %>% 
     cols_label(phc_share = "(share)",
                health_post_share ="(share)", 
-               mobile_share = "(share)",
+               # mobile_share = "(share)",
                hospital_share = "(share)",
                other_share = "(share)",
                total_pepfar_sites = "Total PEPFAR-supported facilities") %>% 
@@ -332,15 +330,15 @@ primary_impact_viz_tbl <- function(df, ou) {
       rows = Geography %in% ou_list
     ) %>%
     tab_header(
-      title = glue("{ou %>% toupper}: SHARE OF PEPFAR-SUPPORTED PHCS & HEALTH POSTS BY TOTAL PEPFAR-SUPPORTED FACILITIES WITHIN OU")
+      title = glue("{return_type %>% toupper} LEVEL: SHARE OF PEPFAR-SUPPORTED PHCs BY TOTAL PEPFAR-SUPPORTED FACILITIES WITHIN OU")
     ) %>% 
-    gt_color_rows(columns = c(3), na.color = "white", 
+    gt_color_rows(columns = c(fill_col_1), na.color = "white", 
                   palette = c("#f7f7f7", scooter_med),
-                  domain = range(phc_low_bnd, phc_up_bnd),
+                  domain = range(.15, 0.75),
                   pal_type = "continuous") %>% 
-    gt_color_rows(columns = c(5), na.color = "white", 
+    gt_color_rows(columns = c(fill_col_2), na.color = "white", 
                   palette = c("#f7f7f7", scooter_med),
-                  domain = range(hp_low_bnd, hp_up_bnd),
+                  domain = range(0, 0.75),
                   pal_type = "continuous") %>% 
     # gt_color_rows(columns = c(5), na.color = "white", 
     #               palette = c("#f7f7f7", scooter_med),
@@ -350,19 +348,277 @@ primary_impact_viz_tbl <- function(df, ou) {
 }
 
 
-make_primary_impact_viz <- function(ou) {
-  create_joined_tbl(ou) %>% 
-    primary_impact_viz_tbl(ou)
+make_primary_impact_viz <- function(ou, return_type) {
+  create_joined_tbl(ou, return_type) %>% 
+    primary_impact_viz_tbl(ou, return_type)
 }
 
-  #apply function
-make_primary_impact_viz("Kenya")
+#OU table
+map(ou_list, ~create_joined_tbl(ou = .x, return_type = "OU")) %>% 
+  reduce(rbind) %>% 
+  primary_impact_viz_tbl(return_type = "OU") %>% 
+  gtsave_extra(filename = glue("Images/OU_primary_impact_summary_20230822.png"))
 
-create_joined_tbl("Nigeria") %>% 
-  primary_impact_viz_tbl("Nigeria")
+# District Table 
+map(ou_list, ~create_joined_tbl(ou = .x, return_type = "District")) %>% 
+  reduce(rbind) %>% 
+  primary_impact_viz_tbl("District") %>% 
+  gtsave_extra(filename = glue("Images/DISTRICT_primary_impact_summary_20230822.png"))
 
-map(ou_list, ~make_primary_impact_viz(ou = .x) %>% 
-      gtsave_extra(filename = glue("Images/{.x}_primary_impact_summary.png")))
+
+library(cowplot)
+tbl1 <- ggdraw() + draw_image("Images/OU_primary_impact_summary_20230822.png", scale = 0.8)
+tbl2 <- ggdraw() + draw_image("Images/DISTRICT_primary_impact_summary_20230822.png", scale = 0.8)
+
+
+
+# Old ask:
+
+# ou_totals_daa <- get_ou_site_totals(df_gt_all)
+# 
+# 
+# create_joined_tbl <- function(ou, return_type) {
+#   
+#   #OU level summary
+#   df_gt_ou_tbl <- df_gt_all %>% 
+#     filter(regionorcountry_name == ou) %>% 
+#     filter(!is.na(`Facility Type`)) %>%
+#     #  mutate(fac_type = collapse_2())
+#     collapse_fac_type(., unique_var = `Facility Type`) %>%
+#     distinct(regionorcountry_name, orgunit_internal_id, merge_status_two, fac_type) %>%
+#     count(regionorcountry_name, merge_status_two, fac_type, sort = T) %>% 
+#     pivot_wider(names_from = "fac_type", values_from  = "n")
+#   
+#   col_names <- names(df_gt_ou_tbl)
+#   
+#   if ("Health Post" %ni% col_names) {
+#     df_gt_ou_tbl <- df_gt_ou_tbl %>% 
+#       mutate("Health Post" = NA)
+#   }
+#   
+#   df_gt_ou_tbl <- df_gt_ou_tbl %>%
+#     mutate(`Mobile Health Clinic` = NA) %>% 
+#     filter(merge_status_two == "PEPFAR") %>% 
+#     left_join(ou_totals_daa) %>% 
+#     mutate(phc_share = `Primary Health Center`/ total_pepfar_sites,
+#            health_post_share = `Health Post`/ total_pepfar_sites,
+#            other_share = `Other Facility` / total_pepfar_sites,
+#            mobile_share = `Mobile Health Clinic` / total_pepfar_sites,
+#            hospital_share = Hospital / total_pepfar_sites) %>% 
+#     rename(Geography = regionorcountry_name) %>% 
+#     #mutate(District = NA) %>% 
+#     select(Geography, `Primary Health Center`, phc_share, `Health Post`, health_post_share, 
+#            `Mobile Health Clinic`, mobile_share, Hospital, hospital_share, `Other Facility`, 
+#            other_share, total_pepfar_sites) %>% 
+#     arrange(desc(phc_share))
+#   
+#   #get district totals
+#   df_totals_district <- df_gt_all %>% 
+#     filter(regionorcountry_name == ou) %>% 
+#     mutate(indicator_type = case_when(DSD ==1 & TA ==1 ~ "DSD & TA",
+#                                       DSD == 1 & is.na(TA) ~ "DSD",
+#                                       TA == 1 & is.na(DSD) ~ "TA",
+#                                       is.na(DSD) & is.na(TA) & merge_status_two == "PEPFAR" ~ "HSS Sites",
+#                                       TRUE ~ "Not PEPFAR Supported")) %>% 
+#     distinct(regionorcountry_name, orgunit_internal_id, district, merge_status_two, indicator_type) %>%
+#     count(regionorcountry_name, district, indicator_type, sort = T) %>% 
+#     group_by(district) %>%
+#     mutate(total_sites = sum(n)) %>% 
+#     ungroup() %>% 
+#     filter(indicator_type != "Not PEPFAR Supported") %>% 
+#     group_by(district) %>%
+#     mutate(total_pepfar_sites = sum(n)) %>%
+#     ungroup() %>% 
+#     distinct(regionorcountry_name, district, total_sites, total_pepfar_sites)
+#   
+#   #District table
+#   df_gt_district_tbl <- df_gt_all %>% 
+#     filter(regionorcountry_name == ou) %>% 
+#     filter(!is.na(`Facility Type`)) %>%
+#     #  mutate(fac_type = collapse_2())
+#     collapse_fac_type(., unique_var = `Facility Type`) %>%
+#     distinct(regionorcountry_name, orgunit_internal_id, district, merge_status_two, fac_type) %>%
+#     count(regionorcountry_name, district, merge_status_two, fac_type, sort = T) %>% 
+#     pivot_wider(names_from = "fac_type", values_from  = "n") %>%
+#     filter(!is.na(district))
+#   
+#   col_names_district <- names(df_gt_district_tbl)
+#   
+#   if ("Health Post" %ni% col_names_district) {
+#     df_gt_district_tbl <- df_gt_district_tbl %>% 
+#       mutate("Health Post" = NA)
+#   }  
+#   
+#   df_gt_district_tbl <- df_gt_district_tbl %>% 
+#     mutate(`Mobile Health Clinic` = NA) %>% 
+#     filter(merge_status_two == "PEPFAR") %>% 
+#     left_join(df_totals_district) %>% 
+#     mutate(phc_share = `Primary Health Center`/ total_pepfar_sites,
+#            health_post_share = `Health Post`/ total_pepfar_sites,
+#            other_share = `Other Facility` / total_pepfar_sites,
+#            mobile_share = `Mobile Health Clinic` / total_pepfar_sites,
+#            hospital_share = Hospital / total_pepfar_sites) %>% 
+#     rename(Geography = district) %>% 
+#     select(Geography, `Primary Health Center`, phc_share, `Health Post`, health_post_share, 
+#            `Mobile Health Clinic`, mobile_share, Hospital, hospital_share, `Other Facility`, 
+#            other_share, total_pepfar_sites) %>% 
+#     arrange(desc(phc_share))
+#   
+#   joined_tbl <- df_gt_ou_tbl %>% 
+#     rbind(df_gt_district_tbl)
+#   
+#   
+#   if(return_type == "OU") {
+#     return(df_gt_ou_tbl)
+#   } else if (return_type == "District") {
+#     return(df_gt_district_tbl)
+#   }
+#   
+# }
+# 
+# 
+# ou_tbl_starter <- function(df) {
+# 
+#     pct_cols <- c(3,5,7,9,11)
+#     num_cols <- c(2,4,6,8,10)
+#     col_breaks <- c(2, 4,6,8,10,12)
+#     bold_col <- c(12)
+#   
+#   df %>% 
+#     gt() %>% 
+#     sub_missing(missing_text = ".",
+#     ) %>% 
+#     fmt_percent(columns = pct_cols,
+#                 decimals = 0) %>%
+#     fmt_number(columns = num_cols,
+#                decimal = 0) %>%
+#     # cols_label(phc_share = "(share)",
+#     #            health_post_share = "(share)", 
+#     #            `Primary Health Center` = "PEPFAR Supported Primary Health Centers",
+#     #            `Health Post` = "PEPFAR Supported Health Posts",
+#     #            total_hp = "Total Health Posts" ,
+#     #            total_phc = "Total Primary Health Centers") %>% 
+#     cols_align(align = "left", columns = 1) %>% 
+#     tab_style(
+#       style = list(
+#         cell_borders(
+#           sides = c("left"), 
+#           color = trolley_grey_light,
+#           weight = px(2)
+#         )
+#       ),
+#       locations = list(
+#         cells_body(
+#           columns = col_breaks
+#         )
+#       )
+#     ) %>% 
+#     # grand_summary_rows(
+#     #   columns = where(is.integer),
+#     #   fns = list(
+#     #     Overall = ~ sum(., na.rm = T)
+#     #   ),
+#     #   formatter = fmt_number,
+#     #   decimals = 0
+#     # ) %>% 
+#     gt_theme_nytimes() %>% 
+#     # tab_header(
+#     #   title = glue("SHARE OF PRIMARY HEALTH CENTERS AND HEALTH POSTS SUPPORTED BY PEPFAR")
+#     # ) %>% 
+#     tab_source_note(
+#       source_note = gt::md(glue("Source: DATIM DAA Site Attribute Data | Ref id: {ref_id}"))) %>% 
+#     tab_options(
+#       source_notes.font.size = px(10),
+#       row_group.font.weight = "bold",
+#       data_row.padding = px(1),
+#       column_labels.font.size = px(15)) %>% 
+#     # Highlighting max value within each column
+#     # gt_color_rows(columns = c(4,7), na.color = "white", 
+#     #               palette = c("#f7f7f7", golden_sand)) %>% 
+#     tab_style(
+#       style = list(
+#         cell_text(weight = 600)
+#       ),
+#       locations = cells_body(
+#         columns = bold_col
+#       )
+#     )
+#   
+# }
+# 
+# primary_impact_viz_tbl <- function(df, ou) {
+#   
+#   if (ou == "Malawi") {
+#     phc_low_bnd <- 0.6
+#     phc_up_bnd <- 0.75
+#     hp_low_bnd <- 0
+#     hp_up_bnd <- 0.75
+#   } else if (ou == "Nigeria") {
+#     phc_low_bnd <- 0.25
+#     phc_up_bnd <- 0.60
+#     hp_low_bnd <- 0
+#     hp_up_bnd <- 0.60
+#   } else if (ou == "Cote d'Ivoire") {
+#     phc_low_bnd <- 0.65
+#     phc_up_bnd <- 0.73
+#     hp_low_bnd <- 0
+#     hp_up_bnd <- 0.75
+#   } else if (ou == "Kenya") {
+#     phc_low_bnd <- 0.1
+#     phc_up_bnd <- 0.4
+#     hp_low_bnd <- 0
+#     hp_up_bnd <- 0.75
+#   }
+#   
+#   
+#   df %>% 
+#     ou_tbl_starter() %>% 
+#     cols_label(phc_share = "(share)",
+#                health_post_share ="(share)", 
+#                mobile_share = "(share)",
+#                hospital_share = "(share)",
+#                other_share = "(share)",
+#                total_pepfar_sites = "Total PEPFAR-supported facilities") %>% 
+#     tab_row_group(
+#       label = "Primary Impact District",
+#       rows = Geography %ni% ou_list
+#     ) %>%
+#     tab_row_group(
+#       label = "Country",
+#       rows = Geography %in% ou_list
+#     ) %>%
+#     tab_header(
+#       title = glue("{ou %>% toupper}: SHARE OF PEPFAR-SUPPORTED PHCS & HEALTH POSTS BY TOTAL PEPFAR-SUPPORTED FACILITIES WITHIN OU")
+#     ) %>% 
+#     gt_color_rows(columns = c(3), na.color = "white", 
+#                   palette = c("#f7f7f7", scooter_med),
+#                   domain = range(phc_low_bnd, phc_up_bnd),
+#                   pal_type = "continuous") %>% 
+#     gt_color_rows(columns = c(5), na.color = "white", 
+#                   palette = c("#f7f7f7", scooter_med),
+#                   domain = range(hp_low_bnd, hp_up_bnd),
+#                   pal_type = "continuous") %>% 
+#     # gt_color_rows(columns = c(5), na.color = "white", 
+#     #               palette = c("#f7f7f7", scooter_med),
+#     #               domain = c(5),
+#     #               pal_type = "continuous") %>% 
+#     drkn_clmn_hdr() 
+# }
+# 
+# 
+# make_primary_impact_viz <- function(ou) {
+#   create_joined_tbl(ou) %>% 
+#     primary_impact_viz_tbl(ou)
+# }
+# 
+#   #apply function
+# make_primary_impact_viz("Kenya")
+# 
+# create_joined_tbl("Nigeria") %>% 
+#   primary_impact_viz_tbl("Nigeria")
+# 
+# map(ou_list, ~make_primary_impact_viz(ou = .x) %>% 
+#       gtsave_extra(filename = glue("Images/{.x}_primary_impact_summary.png")))
 
 # MAKE WAFFLE SUMMARY -- MMMM Wafles.... ----------------------------------
 
@@ -414,7 +670,6 @@ msd <- make_waffle(gen_tile_fill(msd_prop), clr = c("#D6CE47", grey20k)) + labs(
 
 daa + daa_sa + api + msd + plot_layout(nrow = 1) 
 si_save("Graphics/PHC_data_source_summary_4_ous.svg")
-
 
 
 
