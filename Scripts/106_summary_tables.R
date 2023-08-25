@@ -38,11 +38,16 @@ library(gt)
   temp <- tempfile(fileext = ".zip")
   dl <- drive_download(as_id(ss_sites), path = temp, overwrite = T)
   
+  dl %>% 
+    pull(local_path)
+  
   # Notes - "[^\/]+$" matches the non-slashes substring right at the end of what you test
   # Contains all site types including community  
   datim_sites_api <- vroom::vroom(dl$local_path) %>% 
     filter(operatingunit %in% ou_list) %>% 
     mutate(facilityname = str_extract(orgunit_hierarchy, "([^\\/]+$)"), .after = orgunit_hierarchy)
+  
+  datim_sites_api %>% distinct(sitetype)
   
   #attribute data from 103_download_daa_deou_facilities
   df_daa <- readRDS("Dataout/daa_fac_df") 
@@ -57,10 +62,18 @@ library(gt)
 # MUNGE -------------------------------------------------------------------
 
   #prep API data - filter to facility sites and pivot indicator type
+  
+    datim_sites_api %>% distinct(indicatortype)
+  
     api_tagged <- datim_sites_api %>% 
       select(1:6) %>% 
       filter(sitetype == "Facility") %>% 
-      mutate(value = 1) %>% 
+      mutate(
+        #value = 1,
+        value = case_when(
+          indicatortype != "No Support Type" ~ 1,
+          TRUE ~ NA_integer_
+        )) %>% 
       pivot_wider(names_from = indicatortype, values_from = value) %>% 
       mutate(pepfar_fp = case_when(
         is.na(DSD) & is.na(TA) ~ "Non-PEPFAR",
