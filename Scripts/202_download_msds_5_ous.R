@@ -54,11 +54,11 @@ items <- map2_dfr(c("mer", "mer", "financial"),
 # Concatenated list of OUs for analysis
 ou_list <- str_c("Kenya", "Malawi", "Nigeria", "West Africa Region", "Cote d'Ivoire", sep = "|")
 
-regex_ous <- glue("MER_Structured_Datasets_Site_IM_FY21-23.*{ou_list}\\.zip") %>% as.character()
+regex_ous <- glue("MER_Structured_Datasets_Site_IM_FY21-24.*{ou_list}\\.zip") %>% as.character()
 
 #download site level MSDs to data folder
 items %>%
-  filter(parent == "MER FY2023 Q2 Clean/Site Level") %>% 
+  filter(parent == "MER FY2023 Q3 Initial/Site Level") %>% 
   filter(str_detect(item, regex_ous)) %>%
   distinct(path) %>%
   pull(path) %>%
